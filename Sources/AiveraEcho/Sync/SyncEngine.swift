@@ -13,22 +13,34 @@ final class SyncEngine: ObservableObject {
     private let database: AppDatabase
     private let repository: ReminderRepository
     private let sessionStore: SessionStore
+    private let settingsStore: SettingsStore
     private let client = SupabaseConfig.shared
 
     private let lastSyncedAtKey = "echo.lastSyncedAt"
 
-    init(database: AppDatabase, repository: ReminderRepository, sessionStore: SessionStore) {
+    init(
+        database: AppDatabase,
+        repository: ReminderRepository,
+        sessionStore: SessionStore,
+        settingsStore: SettingsStore
+    ) {
         self.database = database
         self.repository = repository
         self.sessionStore = sessionStore
+        self.settingsStore = settingsStore
         self.lastSyncedAt = UserDefaults.standard.object(forKey: lastSyncedAtKey) as? Date
     }
 
     /// Trigger a push+pull. Safe to call concurrently — a second invocation
-    /// short-circuits while the first is in flight.
+    /// short-circuits while the first is in flight. No-op when the user has
+    /// turned off cloud sync in Settings (push side stays dirty for later).
     func syncNow() async {
         guard SupabaseConfig.isConfigured else {
             lastError = "Cloud sync isn't configured in this build."
+            return
+        }
+        guard settingsStore.settings.cloudSyncEnabled else {
+            // Don't surface an error here — user-chosen off state is fine.
             return
         }
         guard let session = sessionStore.session else {

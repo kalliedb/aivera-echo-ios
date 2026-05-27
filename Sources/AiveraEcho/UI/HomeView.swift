@@ -15,6 +15,7 @@ struct HomeView: View {
     @State private var snoozingReminder: Reminder?
     @State private var customSnoozeDate: Date = Date().addingTimeInterval(60 * 60)
     @State private var showAccount = false
+    @State private var showSettings = false
 
     var body: some View {
         NavigationStack {
@@ -35,7 +36,7 @@ struct HomeView: View {
                     .accessibilityLabel("Account & sync")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { /* TODO: settings in M3.4 */ }) {
+                    Button(action: { showSettings = true }) {
                         Image(systemName: "gearshape")
                     }
                     .accessibilityLabel("Settings")
@@ -114,6 +115,9 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showAccount) {
                 AccountSheet()
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
             }
         }
     }
@@ -207,15 +211,17 @@ struct HomeView: View {
 }
 
 #Preview {
-    let db      = try! AppDatabase.makeEphemeral()
-    let sched   = NotificationScheduler()
-    let repo    = ReminderRepository(database: db, scheduler: sched)
-    let session = SessionStore()
+    let db       = try! AppDatabase.makeEphemeral()
+    let sched    = NotificationScheduler()
+    let repo     = ReminderRepository(database: db, scheduler: sched)
+    let session  = SessionStore()
+    let settings = SettingsStore()
     return HomeView()
         .environmentObject(repo)
         .environmentObject(AudioPlayer())
         .environmentObject(LocationManager())
         .environmentObject(session)
-        .environmentObject(SyncEngine(database: db, repository: repo, sessionStore: session))
+        .environmentObject(SyncEngine(database: db, repository: repo, sessionStore: session, settingsStore: settings))
         .environmentObject(EntitlementStore(sessionStore: session))
+        .environmentObject(settings)
 }

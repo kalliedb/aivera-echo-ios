@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     let sessionStore:    SessionStore
     let syncEngine:      SyncEngine
     let entitlementStore: EntitlementStore
+    let settingsStore:   SettingsStore
 
     override init() {
         // Database: prefer the file-backed DB. If the disk is unwritable for
@@ -33,22 +34,25 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         let locationManager  = LocationManager()
         let geofenceManager  = GeofenceManager()
         let sessionStore     = SessionStore()
+        let settingsStore    = SettingsStore()
         let repository       = ReminderRepository(
             database:        db,
             scheduler:       scheduler,
             geofenceManager: geofenceManager
         )
-        self.database        = db
-        self.scheduler       = scheduler
-        self.locationManager = locationManager
-        self.geofenceManager = geofenceManager
-        self.audioPlayer     = AudioPlayer()
-        self.sessionStore    = sessionStore
-        self.repository      = repository
-        self.syncEngine      = SyncEngine(
-            database:    db,
-            repository:  repository,
-            sessionStore: sessionStore
+        self.database         = db
+        self.scheduler        = scheduler
+        self.locationManager  = locationManager
+        self.geofenceManager  = geofenceManager
+        self.audioPlayer      = AudioPlayer()
+        self.sessionStore     = sessionStore
+        self.settingsStore    = settingsStore
+        self.repository       = repository
+        self.syncEngine       = SyncEngine(
+            database:     db,
+            repository:   repository,
+            sessionStore: sessionStore,
+            settingsStore: settingsStore
         )
         self.entitlementStore = EntitlementStore(sessionStore: sessionStore)
         super.init()

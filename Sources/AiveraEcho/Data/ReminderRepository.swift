@@ -119,6 +119,17 @@ final class ReminderRepository: ObservableObject {
         disarm(reminderId: id)
     }
 
+    /// Wipe every row. Used by Settings → Delete my data.
+    func wipeAll() async {
+        let ids = (try? await database.writer.read { db in
+            try Reminder.fetchAll(db).map(\.id)
+        }) ?? []
+        for id in ids { disarm(reminderId: id) }
+        try? await database.writer.write { db in
+            _ = try Reminder.deleteAll(db)
+        }
+    }
+
     /// Clear dirty flag after a successful push (the row is now in sync).
     func clearDirty(id: String) async throws {
         try await database.writer.write { db in
