@@ -62,7 +62,8 @@ Sources/AiveraEcho/
 | M2.1 — Persistence | GRDB DatabasePool + ValueObservation; reminders survive app launches | ✅ |
 | M2.2 — Encryption at rest | iOS Data Protection on SQLite + audio folder (see below) | ✅ |
 | M2.3 — Audio playback | AVAudioPlayer wrapper, tap play/stop on a recorded clip | ✅ |
-| M2.4 — Notifications + scheduling | UNUserNotificationCenter + BGTaskScheduler, snooze, "Done" actions | |
+| M2.4 — Notifications + scheduling | UNUserNotificationCenter, Done + Snooze 15m actions, contextual auth prompt | ✅ |
+| M2.5 — Snooze menu + Play action | 5/15/60/custom snooze options + Play action plays clip from lock screen | next |
 | M3 — Notifications + scheduling | UNUserNotificationCenter + BGTaskScheduler, snooze, "Done" actions | |
 | M4 — Place reminders | Core Location, CLCircularRegion, in-app picker | |
 | M5 — Cloud sync | supabase-swift, sign-in, mirror Android reminders table | |

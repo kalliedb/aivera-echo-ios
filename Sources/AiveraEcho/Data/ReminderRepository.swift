@@ -2,19 +2,21 @@ import Combine
 import Foundation
 import GRDB
 
-/// File-backed reminder repository. Replaces the in-memory `ReminderStore` from
-/// M1. `reminders` is published via a GRDB `ValueObservation`, so any write
-/// (this app or background fires) re-renders SwiftUI automatically.
+/// File-backed reminder repository. Each write to the DB also keeps the
+/// system notification queue in sync (schedule/cancel/reschedule) via the
+/// injected `NotificationScheduler`.
 @MainActor
 final class ReminderRepository: ObservableObject {
 
     @Published private(set) var reminders: [Reminder] = []
 
     private let database: AppDatabase
+    private let scheduler: NotificationScheduler?
     private var observation: AnyDatabaseCancellable?
 
-    init(database: AppDatabase) {
+    init(database: AppDatabase, scheduler: NotificationScheduler? = nil) {
         self.database = database
+        self.scheduler = scheduler
         observe()
     }
 
@@ -39,21 +41,31 @@ final class ReminderRepository: ObservableObject {
         )
     }
 
-    // MARK: - Writes (async; called from `.task { ... }` in SwiftUI)
+    // MARK: - Reads
+    func findById(_ id: String) async throws -> Reminder? {
+        try await database.writer.read { db in
+            try Reminder.fetchOne(db, key: id)
+        }
+    }
+
+    // MARK: - Writes
 
     func add(_ reminder: Reminder) async throws {
         try await database.writer.write { db in
             var copy = reminder
             try copy.insert(db)
         }
+        await scheduler?.schedule(reminder)
     }
 
     func update(_ reminder: Reminder) async throws {
+        var copy = reminder
+        copy.updatedAt = Date()
         try await database.writer.write { db in
-            var copy = reminder
-            copy.updatedAt = Date()
             try copy.update(db)
         }
+        // schedule() handles cancel+reschedule and skips for completed/past/location.
+        await scheduler?.schedule(copy)
     }
 
     func delete(_ reminder: Reminder) async throws {
@@ -61,12 +73,22 @@ final class ReminderRepository: ObservableObject {
         try await database.writer.write { db in
             _ = try Reminder.deleteOne(db, key: id)
         }
+        scheduler?.cancel(reminderId: id)
     }
 
     func toggleComplete(_ reminder: Reminder) async throws {
         var copy = reminder
         copy.completed.toggle()
         copy.completedAt = copy.completed ? Date() : nil
+        try await update(copy)
+    }
+
+    /// Snooze by N minutes from now. Used by notification action handlers.
+    func snooze(_ reminder: Reminder, minutes: Int) async throws {
+        var copy = reminder
+        copy.completed = false
+        copy.completedAt = nil
+        copy.triggerAt = Date().addingTimeInterval(TimeInterval(minutes * 60))
         try await update(copy)
     }
 }

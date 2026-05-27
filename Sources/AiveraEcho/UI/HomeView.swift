@@ -2,20 +2,11 @@ import SwiftUI
 
 struct HomeView: View {
 
-    // The database is created once at first view-load; if that fails the app
-    // can't function. M2.2 will add an SQLCipher recovery path mirroring
-    // Android's wipe-and-recreate fallback.
-    @StateObject private var repo = ReminderRepository(
-        database: (try? AppDatabase.makeShared()) ?? {
-            // If even an in-memory DB fails, surface in logs and crash with a
-            // clear message. This shouldn't happen in practice.
-            do { return try AppDatabase.makeEphemeral() }
-            catch { fatalError("Database init failed: \(error)") }
-        }()
-    )
-
+    // Repository + AudioPlayer are owned by AppDelegate and injected via .environmentObject().
+    // SpeechRecognizer is local — only this screen records.
+    @EnvironmentObject private var repo: ReminderRepository
+    @EnvironmentObject private var audioPlayer: AudioPlayer
     @StateObject private var speech = SpeechRecognizer()
-    @StateObject private var audioPlayer = AudioPlayer()
     @State private var showRecordingOverlay = false
     @State private var pendingReviewText: String?
     @State private var lastError: String?
@@ -145,5 +136,9 @@ struct HomeView: View {
 }
 
 #Preview {
-    HomeView()
+    let db  = try! AppDatabase.makeEphemeral()
+    let sched = NotificationScheduler()
+    return HomeView()
+        .environmentObject(ReminderRepository(database: db, scheduler: sched))
+        .environmentObject(AudioPlayer())
 }
