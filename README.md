@@ -5,7 +5,7 @@ Sister to [`aivera-echo-android`](https://github.com/kalliedb/aivera-echo-androi
 
 ## Stack
 
-- **Swift 5.10, SwiftUI** — minimum **iOS 16**
+- **Swift 5.10, SwiftUI** — minimum **iOS 17**
 - **Apple Speech (`SFSpeechRecognizer`)** — on-device transcription, free, no model bundle
 - **AVFoundation** — single `AVAudioEngine` feeds the recogniser AND a clip file (parity with Android's Vosk pipeline)
 - **Supabase Swift SDK** (next) — auth + cloud sync, shared project with Android

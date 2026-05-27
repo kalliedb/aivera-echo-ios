@@ -6,7 +6,7 @@ name: AiveraEcho
 options:
   bundleIdPrefix: solutions.aivera.echo
   deploymentTarget:
-    iOS: "16.0"
+    iOS: "17.0"
   createIntermediateGroups: true
   generateEmptyDirectories: true
   groupSortPosition: top
