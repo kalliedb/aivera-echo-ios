@@ -10,7 +10,7 @@ options:
   createIntermediateGroups: true
   generateEmptyDirectories: true
   groupSortPosition: top
-  xcodeVersion: "15.4"
+  # No xcodeVersion pin — let XcodeGen target whatever the local toolchain is.
 
 settings:
   base:
