@@ -76,6 +76,19 @@ final class AppDatabase {
             )
         }
 
+        // v2: sync metadata. `dirty` = needs push; `pendingDelete` = tombstone.
+        migrator.registerMigration("v2.add_sync_fields") { db in
+            try db.alter(table: Reminder.databaseTableName) { t in
+                t.add(column: "dirty", .boolean).notNull().defaults(to: false)
+                t.add(column: "pendingDelete", .boolean).notNull().defaults(to: false)
+            }
+            try db.create(
+                index: "idx_reminders_dirty",
+                on: Reminder.databaseTableName,
+                columns: ["dirty"]
+            )
+        }
+
         return migrator
     }
 }

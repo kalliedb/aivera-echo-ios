@@ -32,17 +32,22 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         let locationManager  = LocationManager()
         let geofenceManager  = GeofenceManager()
         let sessionStore     = SessionStore()
+        let repository       = ReminderRepository(
+            database:        db,
+            scheduler:       scheduler,
+            geofenceManager: geofenceManager
+        )
         self.database        = db
         self.scheduler       = scheduler
         self.locationManager = locationManager
         self.geofenceManager = geofenceManager
         self.audioPlayer     = AudioPlayer()
         self.sessionStore    = sessionStore
-        self.syncEngine      = SyncEngine(database: db, sessionStore: sessionStore)
-        self.repository      = ReminderRepository(
-            database:        db,
-            scheduler:       scheduler,
-            geofenceManager: geofenceManager
+        self.repository      = repository
+        self.syncEngine      = SyncEngine(
+            database:    db,
+            repository:  repository,
+            sessionStore: sessionStore
         )
         super.init()
 

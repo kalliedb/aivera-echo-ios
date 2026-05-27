@@ -207,13 +207,14 @@ struct HomeView: View {
 }
 
 #Preview {
-    let db    = try! AppDatabase.makeEphemeral()
-    let sched = NotificationScheduler()
+    let db      = try! AppDatabase.makeEphemeral()
+    let sched   = NotificationScheduler()
+    let repo    = ReminderRepository(database: db, scheduler: sched)
     let session = SessionStore()
     return HomeView()
-        .environmentObject(ReminderRepository(database: db, scheduler: sched))
+        .environmentObject(repo)
         .environmentObject(AudioPlayer())
         .environmentObject(LocationManager())
         .environmentObject(session)
-        .environmentObject(SyncEngine(database: db, sessionStore: session))
+        .environmentObject(SyncEngine(database: db, repository: repo, sessionStore: session))
 }

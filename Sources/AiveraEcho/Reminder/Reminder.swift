@@ -20,6 +20,12 @@ struct Reminder: Identifiable, Codable, Equatable, Hashable {
     var placeLabel: String?
     var updatedAt: Date
 
+    // Sync metadata (added in v2 migration). `dirty` flags rows that haven't
+    // been pushed yet; `pendingDelete` is the tombstone marker — soft-deleted
+    // locally, hard-deleted once the push is acknowledged by Supabase.
+    var dirty: Bool
+    var pendingDelete: Bool
+
     init(
         id: String = UUID().uuidString,
         clientId: String? = nil,
@@ -34,7 +40,9 @@ struct Reminder: Identifiable, Codable, Equatable, Hashable {
         longitude: Double? = nil,
         radiusMeters: Double? = nil,
         placeLabel: String? = nil,
-        updatedAt: Date = Date()
+        updatedAt: Date = Date(),
+        dirty: Bool = false,
+        pendingDelete: Bool = false
     ) {
         self.id = id
         self.clientId = clientId ?? id
@@ -50,6 +58,8 @@ struct Reminder: Identifiable, Codable, Equatable, Hashable {
         self.radiusMeters = radiusMeters
         self.placeLabel = placeLabel
         self.updatedAt = updatedAt
+        self.dirty = dirty
+        self.pendingDelete = pendingDelete
     }
 }
 

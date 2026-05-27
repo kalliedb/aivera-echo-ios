@@ -66,7 +66,8 @@ Sources/AiveraEcho/
 | M2.5 — Snooze menu + undo + Play | 5/15/60/Custom snooze, undo-on-delete snackbar, Play action wired | ✅ |
 | M3.1 — Place reminders | Core Location + CLCircularRegion geofences, ReviewSheet picker | ✅ |
 | M3.2a — Supabase auth | supabase-swift SDK, SessionStore, AccountSheet (sign-in / sign-up / sign-out) | ✅ |
-| M3.2b — Reminder sync | push dirty → upsert, pull → merge by updatedAt (last-write-wins) | next |
+| M3.2b — Reminder sync | push dirty + soft-delete tombstones, pull + last-write-wins, foreground auto-sync | ✅ |
+| M3.3 — LTD entitlement check | call is-entitled Edge Function on sign-in, unlock Pro by email | next |
 | M3 — Notifications + scheduling | UNUserNotificationCenter + BGTaskScheduler, snooze, "Done" actions | |
 | M4 — Place reminders | Core Location, CLCircularRegion, in-app picker | |
 | M5 — Cloud sync | supabase-swift, sign-in, mirror Android reminders table | |
