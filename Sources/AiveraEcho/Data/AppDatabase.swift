@@ -13,13 +13,22 @@ final class AppDatabase {
         try Self.migrator.migrate(writer)
     }
 
-    /// File-backed database in the app's Documents directory. Encrypted at rest
-    /// via iOS Data Protection (see `FileProtection.swift`).
+    /// File-backed database in `~/Documents/database/echo.sqlite`. Encrypted
+    /// at rest via iOS Data Protection — applied to the parent directory so
+    /// SQLite's lazily-created WAL/SHM/journal sidecars inherit it automatically.
     static func makeShared() throws -> AppDatabase {
-        let url = try FileManager.default
-            .url(for: .documentDirectory, in: .userDomainMask,
-                 appropriateFor: nil, create: true)
-            .appendingPathComponent("echo.sqlite")
+        let docs = try FileManager.default.url(
+            for: .documentDirectory, in: .userDomainMask,
+            appropriateFor: nil, create: true
+        )
+        let dbDir = docs.appendingPathComponent("database", isDirectory: true)
+        try FileManager.default.createDirectory(at: dbDir, withIntermediateDirectories: true)
+
+        // Apply protection to the directory: anything created inside inherits.
+        // No async dance needed, no race vs. SQLite's lazy WAL creation.
+        FileProtection.apply(to: dbDir)
+
+        let url = dbDir.appendingPathComponent("echo.sqlite")
 
         var config = Configuration()
         config.label = "AiveraEcho"
@@ -27,30 +36,10 @@ final class AppDatabase {
 
         let pool = try DatabasePool(path: url.path, configuration: config)
 
-        // Apply iOS Data Protection to the SQLite file + its sidecars. The WAL
-        // and SHM files appear lazily on first write; apply once now and then
-        // again on first write via `prepareDatabase` — see protectSidecarsLazily().
+        // Belt + braces: also explicitly protect the SQLite file itself once it exists.
         FileProtection.apply(to: url)
-        Self.protectSidecarsLazily(for: url, in: pool)
 
         return try AppDatabase(pool)
-    }
-
-    /// Schedule a one-off DB op that runs after the WAL/SHM sidecars exist,
-    /// then apply the same file protection class to them.
-    private static func protectSidecarsLazily(for dbURL: URL, in pool: DatabasePool) {
-        Task.detached(priority: .background) {
-            // A trivial read forces SQLite to materialise the WAL/SHM files.
-            try? pool.read { _ in }
-            await MainActor.run {
-                let sidecars = [
-                    dbURL.appendingPathExtension("wal"),
-                    dbURL.appendingPathExtension("shm"),
-                    dbURL.appendingPathExtension("journal"),
-                ]
-                sidecars.forEach { FileProtection.apply(to: $0) }
-            }
-        }
     }
 
     /// In-memory database for previews + tests.
