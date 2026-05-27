@@ -1,9 +1,12 @@
 import Foundation
+import GRDB
 
 /// Cross-platform reminder model — mirrors `data/Task.kt` on Android.
+/// Persisted in SQLite via GRDB; the primary key is a stable UUID string so
+/// IDs are globally unique and sync-friendly.
 struct Reminder: Identifiable, Codable, Equatable, Hashable {
-    let id: UUID
-    var clientId: String          // stable per-install ID for sync across devices
+    var id: String
+    var clientId: String          // separate id for cross-device sync (defaults to `id`)
     var text: String
     var triggerAt: Date
     var completed: Bool
@@ -18,8 +21,8 @@ struct Reminder: Identifiable, Codable, Equatable, Hashable {
     var updatedAt: Date
 
     init(
-        id: UUID = UUID(),
-        clientId: String = UUID().uuidString,
+        id: String = UUID().uuidString,
+        clientId: String? = nil,
         text: String,
         triggerAt: Date,
         completed: Bool = false,
@@ -34,7 +37,7 @@ struct Reminder: Identifiable, Codable, Equatable, Hashable {
         updatedAt: Date = Date()
     ) {
         self.id = id
-        self.clientId = clientId
+        self.clientId = clientId ?? id
         self.text = text
         self.triggerAt = triggerAt
         self.completed = completed
@@ -69,4 +72,9 @@ enum Recurrence: String, Codable, CaseIterable {
 enum TriggerType: String, Codable {
     case time = "TIME"
     case location = "LOCATION"
+}
+
+// MARK: - GRDB persistence
+extension Reminder: FetchableRecord, MutablePersistableRecord {
+    static var databaseTableName: String { "reminders" }
 }

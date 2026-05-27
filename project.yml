@@ -21,11 +21,18 @@ settings:
     SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
     GCC_TREAT_WARNINGS_AS_ERRORS: NO
 
+packages:
+  GRDB:
+    url: https://github.com/groue/GRDB.swift
+    from: 6.29.0
+
 targets:
   AiveraEcho:
     type: application
     platform: iOS
     deploymentTarget: "16.0"
+    dependencies:
+      - package: GRDB
     sources:
       - path: Sources/AiveraEcho
     resources:

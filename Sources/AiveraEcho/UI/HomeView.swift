@@ -1,10 +1,23 @@
 import SwiftUI
 
 struct HomeView: View {
-    @StateObject private var store = ReminderStore()
+
+    // The database is created once at first view-load; if that fails the app
+    // can't function. M2.2 will add an SQLCipher recovery path mirroring
+    // Android's wipe-and-recreate fallback.
+    @StateObject private var repo = ReminderRepository(
+        database: (try? AppDatabase.makeShared()) ?? {
+            // If even an in-memory DB fails, surface in logs and crash with a
+            // clear message. This shouldn't happen in practice.
+            do { return try AppDatabase.makeEphemeral() }
+            catch { fatalError("Database init failed: \(error)") }
+        }()
+    )
+
     @StateObject private var speech = SpeechRecognizer()
     @State private var showRecordingOverlay = false
     @State private var pendingReviewText: String?
+    @State private var lastError: String?
 
     var body: some View {
         NavigationStack {
@@ -33,16 +46,24 @@ struct HomeView: View {
                 set: { pendingReviewText = $0?.text }
             )) { draft in
                 ReviewSheet(draft: draft) { reminder in
-                    if let reminder { store.add(reminder) }
+                    if let reminder {
+                        Task { try? await repo.add(reminder) }
+                    }
                     pendingReviewText = nil
                 }
+            }
+            .alert("Something went wrong",
+                   isPresented: Binding(get: { lastError != nil }, set: { _ in lastError = nil })) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(lastError ?? "")
             }
         }
     }
 
     @ViewBuilder
     private var content: some View {
-        if store.reminders.isEmpty {
+        if repo.reminders.isEmpty {
             VStack(spacing: 12) {
                 Image(systemName: "mic.slash")
                     .font(.system(size: 48))
@@ -57,15 +78,15 @@ struct HomeView: View {
             .padding(.bottom, 100)
         } else {
             List {
-                ForEach(store.reminders) { reminder in
+                ForEach(repo.reminders) { reminder in
                     ReminderRow(
                         reminder: reminder,
-                        onToggle: { store.toggleComplete(reminder) },
-                        onPlay: { /* TODO: AVPlayer */ }
+                        onToggle: { Task { try? await repo.toggleComplete(reminder) } },
+                        onPlay: { /* TODO: AVPlayer in M2.3 */ }
                     )
                     .swipeActions(edge: .trailing) {
                         Button(role: .destructive) {
-                            store.delete(reminder)
+                            Task { try? await repo.delete(reminder) }
                         } label: { Label("Delete", systemImage: "trash") }
                     }
                 }
@@ -74,6 +95,8 @@ struct HomeView: View {
         }
     }
 
+    // MARK: - Recording lifecycle
+
     private func micPressed() {
         if speech.isRecording {
             speech.stop()
@@ -81,20 +104,24 @@ struct HomeView: View {
             Task {
                 let ok = await speech.requestPermissions()
                 guard ok else {
-                    // TODO: surface permission-denied UX
+                    lastError = "Microphone and Speech Recognition permission needed in Settings."
                     return
                 }
                 showRecordingOverlay = true
-                try? await speech.start()
+                do {
+                    try await speech.start()
+                } catch {
+                    lastError = error.localizedDescription
+                    showRecordingOverlay = false
+                }
             }
         }
     }
 
     private func saveFromRecording() {
         speech.stop()
-        // Once stop() lets the recognizer finalise, hand the text off to review.
         Task {
-            // Brief delay to let finalText settle. SF can post final after stop().
+            // Brief delay so the recogniser can post the final transcript.
             try? await Task.sleep(nanoseconds: 800_000_000)
             let text = speech.finalText.isEmpty ? speech.partialText : speech.finalText
             showRecordingOverlay = false
