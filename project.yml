@@ -67,7 +67,7 @@ targets:
         # to be public-safe (RLS protects the data); committing it is fine.
         # If you ever rotate the key, just update it here.
         SUPABASE_URL: "https://rnoofzjmoalcdygksvos.supabase.co"
-        SUPABASE_ANON_KEY: "PASTE_ANON_KEY_HERE_OR_LEAVE_BLANK_TO_DISABLE_SYNC"
+        SUPABASE_ANON_KEY: "sb_publishable_CSuu1uf-VdoMyBxIn6J2IA_7xTW67c_"
         UIBackgroundModes:
           - audio
           - location
