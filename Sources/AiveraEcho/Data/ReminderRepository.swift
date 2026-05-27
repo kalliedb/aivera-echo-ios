@@ -16,11 +16,17 @@ final class ReminderRepository: ObservableObject {
 
     private let database: AppDatabase
     private let scheduler: NotificationScheduler?
+    private let geofenceManager: GeofenceManager?
     private var observation: AnyDatabaseCancellable?
 
-    init(database: AppDatabase, scheduler: NotificationScheduler? = nil) {
+    init(
+        database: AppDatabase,
+        scheduler: NotificationScheduler? = nil,
+        geofenceManager: GeofenceManager? = nil
+    ) {
         self.database = database
         self.scheduler = scheduler
+        self.geofenceManager = geofenceManager
         observe()
     }
 
@@ -59,7 +65,7 @@ final class ReminderRepository: ObservableObject {
             var copy = reminder
             try copy.insert(db)
         }
-        await scheduler?.schedule(reminder)
+        await arm(reminder)
     }
 
     func update(_ reminder: Reminder) async throws {
@@ -68,8 +74,7 @@ final class ReminderRepository: ObservableObject {
         try await database.writer.write { db in
             try copy.update(db)
         }
-        // schedule() handles cancel+reschedule and skips for completed/past/location.
-        await scheduler?.schedule(copy)
+        await arm(copy)
     }
 
     func delete(_ reminder: Reminder) async throws {
@@ -77,10 +82,25 @@ final class ReminderRepository: ObservableObject {
         try await database.writer.write { db in
             _ = try Reminder.deleteOne(db, key: id)
         }
-        scheduler?.cancel(reminderId: id)
+        disarm(reminderId: id)
         // Expose for the UndoSnackbar. UI clears this via clearUndo() after the
         // 5-second window, or restores via undoDelete().
         recentlyDeleted = reminder
+    }
+
+    // MARK: - Trigger orchestration
+    /// Tell the right subsystem to (re-)register triggers for this reminder.
+    /// Each subsystem internally filters by triggerType + completed, so we
+    /// can naively call both for every write.
+    private func arm(_ reminder: Reminder) async {
+        await scheduler?.schedule(reminder)
+        geofenceManager?.register(reminder)
+    }
+
+    /// Symmetric cancel for delete.
+    private func disarm(reminderId: String) {
+        scheduler?.cancel(reminderId: reminderId)
+        geofenceManager?.unregister(reminderId: reminderId)
     }
 
     /// Re-insert the most recently deleted reminder and re-arm its notification.

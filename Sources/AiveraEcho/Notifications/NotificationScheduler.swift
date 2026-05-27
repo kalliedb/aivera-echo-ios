@@ -116,6 +116,41 @@ final class NotificationScheduler {
         }
     }
 
+    /// Fire a notification right now (used by GeofenceManager on region enter).
+    /// Identifier includes a timestamp so iOS doesn't dedupe against any
+    /// scheduled future delivery for the same reminder.
+    func fireImmediate(for reminder: Reminder) async {
+        guard await requestAuthorizationIfNeeded() else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Reminder"
+        let bodyBase  = reminder.text.isEmpty ? "Voice reminder" : reminder.text
+        if let place = reminder.placeLabel, !place.isEmpty {
+            content.body = "\(bodyBase) — \(place)"
+        } else {
+            content.body = bodyBase
+        }
+        content.sound = .default
+        content.categoryIdentifier = Category.reminder
+        content.userInfo = [
+            "reminderId": reminder.id,
+            "audioPath":  reminder.audioPath ?? "",
+        ]
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "\(reminder.id)-fired-\(Int(Date().timeIntervalSince1970))",
+            content:    content,
+            trigger:    trigger
+        )
+
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            print("fireImmediate failed for \(reminder.id): \(error)")
+        }
+    }
+
     /// Remove pending + delivered notifications for a single reminder.
     func cancel(reminderId: String) {
         let center = UNUserNotificationCenter.current()

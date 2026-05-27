@@ -197,9 +197,10 @@ struct HomeView: View {
 }
 
 #Preview {
-    let db  = try! AppDatabase.makeEphemeral()
+    let db    = try! AppDatabase.makeEphemeral()
     let sched = NotificationScheduler()
     return HomeView()
         .environmentObject(ReminderRepository(database: db, scheduler: sched))
         .environmentObject(AudioPlayer())
+        .environmentObject(LocationManager())
 }

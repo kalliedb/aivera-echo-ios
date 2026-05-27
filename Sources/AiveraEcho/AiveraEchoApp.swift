@@ -13,6 +13,7 @@ struct AiveraEchoApp: App {
                 // view down the tree can pull them with @EnvironmentObject.
                 .environmentObject(appDelegate.repository)
                 .environmentObject(appDelegate.audioPlayer)
+                .environmentObject(appDelegate.locationManager)
         }
     }
 }

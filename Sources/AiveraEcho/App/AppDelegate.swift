@@ -8,10 +8,12 @@ import UserNotifications
 @MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
-    let database:     AppDatabase
-    let repository:   ReminderRepository
-    let audioPlayer:  AudioPlayer
-    let scheduler:    NotificationScheduler
+    let database:        AppDatabase
+    let repository:      ReminderRepository
+    let audioPlayer:     AudioPlayer
+    let scheduler:       NotificationScheduler
+    let locationManager: LocationManager
+    let geofenceManager: GeofenceManager
 
     override init() {
         // Database: prefer the file-backed DB. If the disk is unwritable for
@@ -24,12 +26,31 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             // swiftlint:disable:next force_try
             db = try! AppDatabase.makeEphemeral()
         }
-        let scheduler = NotificationScheduler()
-        self.database     = db
-        self.scheduler    = scheduler
-        self.audioPlayer  = AudioPlayer()
-        self.repository   = ReminderRepository(database: db, scheduler: scheduler)
+        let scheduler        = NotificationScheduler()
+        let locationManager  = LocationManager()
+        let geofenceManager  = GeofenceManager()
+        self.database        = db
+        self.scheduler       = scheduler
+        self.locationManager = locationManager
+        self.geofenceManager = geofenceManager
+        self.audioPlayer     = AudioPlayer()
+        self.repository      = ReminderRepository(
+            database:        db,
+            scheduler:       scheduler,
+            geofenceManager: geofenceManager
+        )
         super.init()
+
+        // Wire geofence enter events back through the scheduler so location
+        // reminders fire as immediate local notifications.
+        geofenceManager.onEnterRegion = { [weak self] reminderId in
+            guard let self else { return }
+            Task { @MainActor in
+                guard let reminder = try? await self.repository.findById(reminderId),
+                      !reminder.completed else { return }
+                await self.scheduler.fireImmediate(for: reminder)
+            }
+        }
     }
 
     func application(
