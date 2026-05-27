@@ -217,4 +217,5 @@ struct HomeView: View {
         .environmentObject(LocationManager())
         .environmentObject(session)
         .environmentObject(SyncEngine(database: db, repository: repo, sessionStore: session))
+        .environmentObject(EntitlementStore(sessionStore: session))
 }

@@ -5,6 +5,7 @@ struct AccountSheet: View {
 
     @EnvironmentObject private var sessionStore: SessionStore
     @EnvironmentObject private var syncEngine: SyncEngine
+    @EnvironmentObject private var entitlementStore: EntitlementStore
     @Environment(\.dismiss) private var dismiss
 
     @State private var email = ""
@@ -40,6 +41,18 @@ struct AccountSheet: View {
     private func signedInSections(session: AppSession) -> some View {
         Section("Signed in") {
             Label(session.email, systemImage: "person.crop.circle")
+            LabeledContent("Plan") {
+                HStack(spacing: 6) {
+                    if entitlementStore.entitled {
+                        Image(systemName: "checkmark.seal.fill")
+                            .foregroundStyle(Color.echoAccent)
+                    }
+                    Text(entitlementStore.planLabel)
+                        .foregroundStyle(entitlementStore.entitled
+                                         ? Color.echoAccent
+                                         : .secondary)
+                }
+            }
         }
 
         Section("Sync") {
@@ -128,13 +141,19 @@ struct AccountSheet: View {
     private func primaryAction() async {
         if isSignUp {
             let immediate = await sessionStore.signUp(email: email, password: password)
-            if !immediate {
+            if immediate {
+                await entitlementStore.refresh()
+            } else {
                 // Email-confirm flow: switch back to sign-in mode after the
                 // "check your email" info message renders.
                 isSignUp = false
             }
         } else {
             await sessionStore.signIn(email: email, password: password)
+            // Refresh entitlement only if sign-in actually established a session.
+            if sessionStore.session != nil {
+                await entitlementStore.refresh()
+            }
         }
     }
 }

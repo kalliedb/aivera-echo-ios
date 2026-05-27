@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     let geofenceManager: GeofenceManager
     let sessionStore:    SessionStore
     let syncEngine:      SyncEngine
+    let entitlementStore: EntitlementStore
 
     override init() {
         // Database: prefer the file-backed DB. If the disk is unwritable for
@@ -49,6 +50,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             repository:  repository,
             sessionStore: sessionStore
         )
+        self.entitlementStore = EntitlementStore(sessionStore: sessionStore)
         super.init()
 
         // Wire geofence enter events back through the scheduler so location

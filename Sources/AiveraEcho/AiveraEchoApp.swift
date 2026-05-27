@@ -16,12 +16,16 @@ struct AiveraEchoApp: App {
                 .environmentObject(appDelegate.locationManager)
                 .environmentObject(appDelegate.sessionStore)
                 .environmentObject(appDelegate.syncEngine)
+                .environmentObject(appDelegate.entitlementStore)
                 .onChange(of: scenePhase) { newPhase in
-                    // Sync whenever the app comes to the foreground. Cheap if
-                    // there's nothing dirty (skips push, pulls empty result).
+                    // Sync + refresh entitlement when the app comes to the foreground.
+                    // Both are cheap when there's nothing to do.
                     // (Two-argument form is iOS 17+; we target iOS 16.)
                     if newPhase == .active {
-                        Task { await appDelegate.syncEngine.syncNow() }
+                        Task {
+                            await appDelegate.syncEngine.syncNow()
+                            await appDelegate.entitlementStore.refresh()
+                        }
                     }
                 }
         }
