@@ -14,6 +14,7 @@ struct HomeView: View {
     /// Reminder whose custom snooze date is being chosen (drives the sheet).
     @State private var snoozingReminder: Reminder?
     @State private var customSnoozeDate: Date = Date().addingTimeInterval(60 * 60)
+    @State private var showAccount = false
 
     var body: some View {
         NavigationStack {
@@ -28,7 +29,13 @@ struct HomeView: View {
             .navigationTitle("Aivera Echo")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { /* TODO: settings */ }) {
+                    Button(action: { showAccount = true }) {
+                        Image(systemName: "person.crop.circle")
+                    }
+                    .accessibilityLabel("Account & sync")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: { /* TODO: settings in M3.4 */ }) {
                         Image(systemName: "gearshape")
                     }
                     .accessibilityLabel("Settings")
@@ -104,6 +111,9 @@ struct HomeView: View {
                     }
                 }
                 .presentationDetents([.medium, .large])
+            }
+            .sheet(isPresented: $showAccount) {
+                AccountSheet()
             }
         }
     }
@@ -199,8 +209,11 @@ struct HomeView: View {
 #Preview {
     let db    = try! AppDatabase.makeEphemeral()
     let sched = NotificationScheduler()
+    let session = SessionStore()
     return HomeView()
         .environmentObject(ReminderRepository(database: db, scheduler: sched))
         .environmentObject(AudioPlayer())
         .environmentObject(LocationManager())
+        .environmentObject(session)
+        .environmentObject(SyncEngine(database: db, sessionStore: session))
 }

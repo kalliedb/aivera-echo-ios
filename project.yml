@@ -25,6 +25,9 @@ packages:
   GRDB:
     url: https://github.com/groue/GRDB.swift
     from: 6.29.0
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: 2.0.0
 
 targets:
   AiveraEcho:
@@ -33,6 +36,7 @@ targets:
     deploymentTarget: "16.0"
     dependencies:
       - package: GRDB
+      - package: Supabase
     sources:
       - path: Sources/AiveraEcho
     resources:
@@ -59,6 +63,11 @@ targets:
         NSSpeechRecognitionUsageDescription: "Echo uses on-device speech recognition to turn your voice into reminders."
         NSLocationWhenInUseUsageDescription: "Echo uses your location for place-based reminders."
         NSLocationAlwaysAndWhenInUseUsageDescription: "Echo uses your location in the background to trigger place-based reminders even when the app is closed."
+        # Supabase project URL + anon (publishable) key. Anon key is designed
+        # to be public-safe (RLS protects the data); committing it is fine.
+        # If you ever rotate the key, just update it here.
+        SUPABASE_URL: "https://rnoofzjmoalcdygksvos.supabase.co"
+        SUPABASE_ANON_KEY: "PASTE_ANON_KEY_HERE_OR_LEAVE_BLANK_TO_DISABLE_SYNC"
         UIBackgroundModes:
           - audio
           - location

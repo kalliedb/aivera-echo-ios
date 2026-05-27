@@ -14,6 +14,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     let scheduler:       NotificationScheduler
     let locationManager: LocationManager
     let geofenceManager: GeofenceManager
+    let sessionStore:    SessionStore
+    let syncEngine:      SyncEngine
 
     override init() {
         // Database: prefer the file-backed DB. If the disk is unwritable for
@@ -29,11 +31,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         let scheduler        = NotificationScheduler()
         let locationManager  = LocationManager()
         let geofenceManager  = GeofenceManager()
+        let sessionStore     = SessionStore()
         self.database        = db
         self.scheduler       = scheduler
         self.locationManager = locationManager
         self.geofenceManager = geofenceManager
         self.audioPlayer     = AudioPlayer()
+        self.sessionStore    = sessionStore
+        self.syncEngine      = SyncEngine(database: db, sessionStore: sessionStore)
         self.repository      = ReminderRepository(
             database:        db,
             scheduler:       scheduler,

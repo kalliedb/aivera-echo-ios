@@ -65,7 +65,8 @@ Sources/AiveraEcho/
 | M2.4 — Notifications + scheduling | UNUserNotificationCenter, Done + Snooze 15m actions, contextual auth prompt | ✅ |
 | M2.5 — Snooze menu + undo + Play | 5/15/60/Custom snooze, undo-on-delete snackbar, Play action wired | ✅ |
 | M3.1 — Place reminders | Core Location + CLCircularRegion geofences, ReviewSheet picker | ✅ |
-| M3.2 — Supabase sync | auth + reminders table mirror, matching Android conflict rules | next |
+| M3.2a — Supabase auth | supabase-swift SDK, SessionStore, AccountSheet (sign-in / sign-up / sign-out) | ✅ |
+| M3.2b — Reminder sync | push dirty → upsert, pull → merge by updatedAt (last-write-wins) | next |
 | M3 — Notifications + scheduling | UNUserNotificationCenter + BGTaskScheduler, snooze, "Done" actions | |
 | M4 — Place reminders | Core Location, CLCircularRegion, in-app picker | |
 | M5 — Cloud sync | supabase-swift, sign-in, mirror Android reminders table | |

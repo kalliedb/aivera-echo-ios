@@ -14,6 +14,8 @@ struct AiveraEchoApp: App {
                 .environmentObject(appDelegate.repository)
                 .environmentObject(appDelegate.audioPlayer)
                 .environmentObject(appDelegate.locationManager)
+                .environmentObject(appDelegate.sessionStore)
+                .environmentObject(appDelegate.syncEngine)
         }
     }
 }
