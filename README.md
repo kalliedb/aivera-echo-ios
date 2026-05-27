@@ -61,7 +61,7 @@ Sources/AiveraEcho/
 | M1 — Compilable skeleton | App scaffold, SwiftUI nav, mic UI, SFSpeechRecognizer wired, theme, CI green | ✅ |
 | M2.1 — Persistence | GRDB DatabasePool + ValueObservation; reminders survive app launches | ✅ |
 | M2.2 — Encryption at rest | iOS Data Protection on SQLite + audio folder (see below) | ✅ |
-| M2.3 — Audio playback | AVAudioPlayer wrapper, tap play on a recorded clip | next |
+| M2.3 — Audio playback | AVAudioPlayer wrapper, tap play/stop on a recorded clip | ✅ |
 | M2.4 — Notifications + scheduling | UNUserNotificationCenter + BGTaskScheduler, snooze, "Done" actions | |
 | M3 — Notifications + scheduling | UNUserNotificationCenter + BGTaskScheduler, snooze, "Done" actions | |
 | M4 — Place reminders | Core Location, CLCircularRegion, in-app picker | |

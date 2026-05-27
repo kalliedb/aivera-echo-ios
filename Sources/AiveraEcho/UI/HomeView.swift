@@ -15,6 +15,7 @@ struct HomeView: View {
     )
 
     @StateObject private var speech = SpeechRecognizer()
+    @StateObject private var audioPlayer = AudioPlayer()
     @State private var showRecordingOverlay = false
     @State private var pendingReviewText: String?
     @State private var lastError: String?
@@ -58,6 +59,7 @@ struct HomeView: View {
             } message: {
                 Text(lastError ?? "")
             }
+            .onDisappear { audioPlayer.stop() }
         }
     }
 
@@ -79,10 +81,17 @@ struct HomeView: View {
         } else {
             List {
                 ForEach(repo.reminders) { reminder in
+                    let isThisRowPlaying =
+                        audioPlayer.isPlaying &&
+                        audioPlayer.nowPlayingURL?.path == reminder.audioPath
                     ReminderRow(
                         reminder: reminder,
+                        isPlaying: isThisRowPlaying,
                         onToggle: { Task { try? await repo.toggleComplete(reminder) } },
-                        onPlay: { /* TODO: AVPlayer in M2.3 */ }
+                        onPlay: {
+                            if isThisRowPlaying { audioPlayer.stop() }
+                            else                { audioPlayer.play(path: reminder.audioPath) }
+                        }
                     )
                     .swipeActions(edge: .trailing) {
                         Button(role: .destructive) {

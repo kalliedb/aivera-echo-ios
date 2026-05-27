@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ReminderRow: View {
     let reminder: Reminder
+    var isPlaying: Bool = false
     let onToggle: () -> Void
     let onPlay: () -> Void
 
@@ -46,12 +47,12 @@ struct ReminderRow: View {
 
             if reminder.audioPath != nil {
                 Button(action: onPlay) {
-                    Image(systemName: "play.circle.fill")
+                    Image(systemName: isPlaying ? "stop.circle.fill" : "play.circle.fill")
                         .font(.system(size: 22))
                         .foregroundStyle(Color.echoAccent)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Play recording")
+                .accessibilityLabel(isPlaying ? "Stop playback" : "Play recording")
             }
         }
         .padding(.vertical, 6)
