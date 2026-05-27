@@ -5,6 +5,8 @@ struct ReminderRow: View {
     var isPlaying: Bool = false
     let onToggle: () -> Void
     let onPlay: () -> Void
+    var onSnooze: ((Int) -> Void)? = nil
+    var onSnoozeCustom: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 12) {
@@ -53,6 +55,13 @@ struct ReminderRow: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(isPlaying ? "Stop playback" : "Play recording")
+            }
+
+            // Snooze menu — only for active time-based reminders.
+            if !reminder.completed,
+               reminder.triggerType == .time,
+               let onSnooze, let onSnoozeCustom {
+                SnoozeMenu(onSnooze: onSnooze, onSnoozeCustom: onSnoozeCustom)
             }
         }
         .padding(.vertical, 6)

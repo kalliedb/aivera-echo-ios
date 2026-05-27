@@ -10,6 +10,10 @@ final class ReminderRepository: ObservableObject {
 
     @Published private(set) var reminders: [Reminder] = []
 
+    /// The most recently swipe-deleted reminder. Cleared after the undo window
+    /// expires or the user taps undo. Drives the UndoSnackbar UI.
+    @Published private(set) var recentlyDeleted: Reminder?
+
     private let database: AppDatabase
     private let scheduler: NotificationScheduler?
     private var observation: AnyDatabaseCancellable?
@@ -74,6 +78,21 @@ final class ReminderRepository: ObservableObject {
             _ = try Reminder.deleteOne(db, key: id)
         }
         scheduler?.cancel(reminderId: id)
+        // Expose for the UndoSnackbar. UI clears this via clearUndo() after the
+        // 5-second window, or restores via undoDelete().
+        recentlyDeleted = reminder
+    }
+
+    /// Re-insert the most recently deleted reminder and re-arm its notification.
+    func undoDelete() async {
+        guard let r = recentlyDeleted else { return }
+        recentlyDeleted = nil
+        try? await add(r)
+    }
+
+    /// Drop the undo state without restoring (snackbar timed out).
+    func clearUndo() {
+        recentlyDeleted = nil
     }
 
     func toggleComplete(_ reminder: Reminder) async throws {

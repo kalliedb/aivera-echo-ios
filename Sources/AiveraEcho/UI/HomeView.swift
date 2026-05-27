@@ -11,6 +11,10 @@ struct HomeView: View {
     @State private var pendingReviewText: String?
     @State private var lastError: String?
 
+    /// Reminder whose custom snooze date is being chosen (drives the sheet).
+    @State private var snoozingReminder: Reminder?
+    @State private var customSnoozeDate: Date = Date().addingTimeInterval(60 * 60)
+
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
@@ -51,6 +55,56 @@ struct HomeView: View {
                 Text(lastError ?? "")
             }
             .onDisappear { audioPlayer.stop() }
+            // Undo snackbar — auto-dismisses after 5 seconds of no further deletes.
+            .overlay(alignment: .bottom) {
+                if let deleted = repo.recentlyDeleted {
+                    UndoSnackbar(
+                        message: "Reminder deleted",
+                        onUndo: { Task { await repo.undoDelete() } }
+                    )
+                    .id(deleted.id)
+                    .task(id: deleted.id) {
+                        try? await Task.sleep(nanoseconds: 5_000_000_000)
+                        if !Task.isCancelled { repo.clearUndo() }
+                    }
+                    .animation(.spring(duration: 0.3), value: deleted.id)
+                }
+            }
+            // Custom snooze date picker — Material-style sheet at .medium height.
+            .sheet(item: $snoozingReminder) { reminder in
+                NavigationStack {
+                    Form {
+                        DatePicker(
+                            "Snooze until",
+                            selection: $customSnoozeDate,
+                            in: Date().addingTimeInterval(60)...,
+                            displayedComponents: [.date, .hourAndMinute]
+                        )
+                        .datePickerStyle(.graphical)
+                    }
+                    .navigationTitle("Custom snooze")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("Cancel") { snoozingReminder = nil }
+                        }
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Snooze") {
+                                Task {
+                                    var copy = reminder
+                                    copy.triggerAt = customSnoozeDate
+                                    copy.completed = false
+                                    copy.completedAt = nil
+                                    try? await repo.update(copy)
+                                    snoozingReminder = nil
+                                }
+                            }
+                            .bold()
+                        }
+                    }
+                }
+                .presentationDetents([.medium, .large])
+            }
         }
     }
 
@@ -82,6 +136,13 @@ struct HomeView: View {
                         onPlay: {
                             if isThisRowPlaying { audioPlayer.stop() }
                             else                { audioPlayer.play(path: reminder.audioPath) }
+                        },
+                        onSnooze: { minutes in
+                            Task { try? await repo.snooze(reminder, minutes: minutes) }
+                        },
+                        onSnoozeCustom: {
+                            customSnoozeDate = max(reminder.triggerAt, Date().addingTimeInterval(60))
+                            snoozingReminder = reminder
                         }
                     )
                     .swipeActions(edge: .trailing) {
