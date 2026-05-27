@@ -62,8 +62,11 @@ final class SpeechRecognizer: ObservableObject {
             appropriateFor: nil, create: true
         ).appendingPathComponent("audio", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        FileProtection.apply(to: dir)   // encrypt the audio folder + everything inside
+
         let url = dir.appendingPathComponent("echo_\(Int(Date().timeIntervalSince1970 * 1000)).caf")
         audioFile = try AVAudioFile(forWriting: url, settings: recordingFormat.settings)
+        FileProtection.apply(to: url)   // belt + braces on the new clip file
         lastAudioURL = url
 
         // Build recognition request — on-device only, partial results on.

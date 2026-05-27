@@ -13,7 +13,8 @@ final class AppDatabase {
         try Self.migrator.migrate(writer)
     }
 
-    /// File-backed database in the app's Documents directory.
+    /// File-backed database in the app's Documents directory. Encrypted at rest
+    /// via iOS Data Protection (see `FileProtection.swift`).
     static func makeShared() throws -> AppDatabase {
         let url = try FileManager.default
             .url(for: .documentDirectory, in: .userDomainMask,
@@ -22,12 +23,34 @@ final class AppDatabase {
 
         var config = Configuration()
         config.label = "AiveraEcho"
-        // foreignKeysEnabled is on by default; explicit for clarity.
         config.foreignKeysEnabled = true
 
-        // M2.2 will set config.prepareDatabase here to plug in SQLCipher.
         let pool = try DatabasePool(path: url.path, configuration: config)
+
+        // Apply iOS Data Protection to the SQLite file + its sidecars. The WAL
+        // and SHM files appear lazily on first write; apply once now and then
+        // again on first write via `prepareDatabase` — see protectSidecarsLazily().
+        FileProtection.apply(to: url)
+        Self.protectSidecarsLazily(for: url, in: pool)
+
         return try AppDatabase(pool)
+    }
+
+    /// Schedule a one-off DB op that runs after the WAL/SHM sidecars exist,
+    /// then apply the same file protection class to them.
+    private static func protectSidecarsLazily(for dbURL: URL, in pool: DatabasePool) {
+        Task.detached(priority: .background) {
+            // A trivial read forces SQLite to materialise the WAL/SHM files.
+            try? pool.read { _ in }
+            await MainActor.run {
+                let sidecars = [
+                    dbURL.appendingPathExtension("wal"),
+                    dbURL.appendingPathExtension("shm"),
+                    dbURL.appendingPathExtension("journal"),
+                ]
+                sidecars.forEach { FileProtection.apply(to: $0) }
+            }
+        }
     }
 
     /// In-memory database for previews + tests.

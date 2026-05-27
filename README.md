@@ -58,8 +58,11 @@ Sources/AiveraEcho/
 
 | Milestone | Scope | Status |
 |---|---|---|
-| M1 — Compilable skeleton | App scaffold, SwiftUI nav, mic UI, SFSpeechRecognizer wired, theme, CI green | ✅ (this commit) |
-| M2 — Persistence + reminders | GRDB+SQLCipher repository, Reminder CRUD, AVPlayer playback | next |
+| M1 — Compilable skeleton | App scaffold, SwiftUI nav, mic UI, SFSpeechRecognizer wired, theme, CI green | ✅ |
+| M2.1 — Persistence | GRDB DatabasePool + ValueObservation; reminders survive app launches | ✅ |
+| M2.2 — Encryption at rest | iOS Data Protection on SQLite + audio folder (see below) | ✅ |
+| M2.3 — Audio playback | AVAudioPlayer wrapper, tap play on a recorded clip | next |
+| M2.4 — Notifications + scheduling | UNUserNotificationCenter + BGTaskScheduler, snooze, "Done" actions | |
 | M3 — Notifications + scheduling | UNUserNotificationCenter + BGTaskScheduler, snooze, "Done" actions | |
 | M4 — Place reminders | Core Location, CLCircularRegion, in-app picker | |
 | M5 — Cloud sync | supabase-swift, sign-in, mirror Android reminders table | |
@@ -68,6 +71,22 @@ Sources/AiveraEcho/
 | M8 — Crashlytics + Analytics | firebase-ios-sdk, register in same Firebase project as Android | |
 | M9 — StoreKit 2 (post-LTD) | Annual subscription via Apple IAP | |
 | M10 — App Store submission | Listing, screenshots, Data Safety, TestFlight → public | |
+
+## Encryption at rest
+
+Both the SQLite database and recorded audio clips are encrypted on disk via
+**iOS Data Protection** at level `completeUntilFirstUserAuthentication`:
+
+- Hardware-backed AES-256 (Secure Enclave on supported devices, derived from the device passcode)
+- Encrypted before the user's first unlock after a device reboot
+- Stays accessible to the app between unlocks so background reminder fires keep working
+- iOS default for app sandbox data; we apply it explicitly so the choice is documented
+
+This is the iOS-native equivalent of the SQLCipher integration on Android. The
+practical security delta vs SQLCipher is negligible for our threat model
+(consumer reminders, no medical/financial data). If a future compliance
+requirement demands SQL-layer encryption specifically, `groue/GRDB.swift` +
+SQLCipher SPM is a straight swap inside `AppDatabase.makeShared()`.
 
 ## Why XcodeGen
 
