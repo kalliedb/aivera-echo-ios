@@ -45,3 +45,8 @@ ExportOptions.plist
 # Dropped-in CI log exports (not source)
 *.pdf
 *.docx
+
+# Ruby / bundler (fastlane)
+vendor/bundle/
+.bundle/
+*.p8

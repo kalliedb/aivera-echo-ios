@@ -1,0 +1,46 @@
+name: iOS TestFlight
+
+# Cut a TestFlight build by pushing a tag like v1.0.0-tf1:
+#   git tag v1.0.0-tf1 && git push origin v1.0.0-tf1
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch: {}   # also allow manual runs from the Actions tab
+
+jobs:
+  testflight:
+    name: Build + upload to TestFlight
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    env:
+      ASC_KEY_ID:    ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8:    ${{ secrets.ASC_KEY_P8 }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+      MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+      MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+      # Non-interactive keychain for match on CI.
+      MATCH_KEYCHAIN_NAME: fastlane_tmp_keychain
+      FASTLANE_HIDE_CHANGELOG: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Set up Ruby + fastlane (bundler)
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Build + upload to TestFlight
+        run: bundle exec fastlane ios beta

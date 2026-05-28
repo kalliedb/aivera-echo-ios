@@ -1,0 +1,60 @@
+default_platform(:ios)
+
+PROJECT = "AiveraEcho.xcodeproj"
+SCHEME  = "AiveraEcho"
+BUNDLE  = "solutions.aivera.echo"
+
+platform :ios do
+
+  # Build a signed App Store archive and upload it to TestFlight.
+  # Triggered by the ios-testflight.yml workflow on v* tags.
+  desc "Build and upload to TestFlight"
+  lane :beta do
+    # 1. App Store Connect API key (from CI secrets) — used for signing-asset
+    #    management AND the TestFlight upload. No Apple ID / password needed.
+    api_key = app_store_connect_api_key(
+      key_id:       ENV.fetch("ASC_KEY_ID"),
+      issuer_id:    ENV.fetch("ASC_ISSUER_ID"),
+      key_content:  ENV.fetch("ASC_KEY_P8"),
+      is_key_content_base64: false
+    )
+
+    # 2. Generate the Xcode project from project.yml (it's not committed).
+    Dir.chdir("..") { sh("xcodegen generate") }
+
+    # 3. Fetch (or, on first run, create + push) the distribution cert +
+    #    provisioning profile. readonly:false lets the very first CI run
+    #    bootstrap the cert repo; later runs just reuse what's there.
+    match(
+      type:           "appstore",
+      app_identifier: BUNDLE,
+      api_key:        api_key,
+      readonly:       false
+    )
+
+    # 4. Build. Unique build number from the CI run number so each upload is
+    #    accepted by TestFlight (passed via xcargs so we don't mutate the
+    #    generated .xcodeproj).
+    build_number = ENV["GITHUB_RUN_NUMBER"] || Time.now.strftime("%Y%m%d%H%M")
+    build_app(
+      project:       PROJECT,
+      scheme:        SCHEME,
+      configuration: "Release",
+      export_method: "app-store",
+      xcargs:        "CURRENT_PROJECT_VERSION=#{build_number}",
+      export_options: {
+        provisioningProfiles: {
+          BUNDLE => "match AppStore #{BUNDLE}"
+        }
+      }
+    )
+
+    # 5. Upload to TestFlight. Skip waiting for Apple's processing so CI exits
+    #    promptly; the build appears in TestFlight a few minutes later.
+    upload_to_testflight(
+      api_key:                          api_key,
+      skip_waiting_for_build_processing: true,
+      distribute_external:              false
+    )
+  end
+end

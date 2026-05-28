@@ -1,0 +1,6 @@
+# App identifier + team. Apple ID isn't needed — we authenticate with an
+# App Store Connect API key (set in CI secrets), not a username/password.
+app_identifier("solutions.aivera.echo")
+
+# Apple Developer Team ID. Override via APPLE_TEAM_ID secret in CI.
+team_id(ENV["APPLE_TEAM_ID"] || "")
