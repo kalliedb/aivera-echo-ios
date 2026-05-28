@@ -41,3 +41,7 @@ fastlane/test_output
 ExportOptions.plist
 .env
 .env.local
+
+# Dropped-in CI log exports (not source)
+*.pdf
+*.docx
