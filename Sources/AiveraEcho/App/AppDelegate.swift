@@ -1,3 +1,6 @@
+import FirebaseAnalytics
+import FirebaseCore
+import FirebaseCrashlytics
 import UIKit
 import UserNotifications
 
@@ -73,9 +76,30 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        configureFirebase()
         UNUserNotificationCenter.current().delegate = self
         scheduler.registerCategories()
         return true
+    }
+
+    /// Configure Firebase Crashlytics + Analytics. Collection is enabled in
+    /// release builds only (debug shouldn't pollute the production dashboards).
+    /// No-ops gracefully when GoogleService-Info.plist isn't bundled (e.g. CI /
+    /// secret-less builds) so the app still launches.
+    private func configureFirebase() {
+        guard Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil else {
+            print("Firebase: GoogleService-Info.plist not found; telemetry disabled")
+            return
+        }
+        FirebaseApp.configure()
+
+        #if DEBUG
+        let enabled = false
+        #else
+        let enabled = true
+        #endif
+        Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(enabled)
+        Analytics.setAnalyticsCollectionEnabled(enabled)
     }
 
     // MARK: - UNUserNotificationCenterDelegate

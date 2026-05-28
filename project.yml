@@ -6,7 +6,7 @@ name: AiveraEcho
 options:
   bundleIdPrefix: solutions.aivera.echo
   deploymentTarget:
-    iOS: "17.0"
+    iOS: "16.0"
   createIntermediateGroups: true
   generateEmptyDirectories: true
   groupSortPosition: top
@@ -28,6 +28,9 @@ packages:
   Supabase:
     url: https://github.com/supabase/supabase-swift
     from: 2.0.0
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    from: 11.0.0
 
 targets:
   AiveraEcho:
@@ -37,6 +40,10 @@ targets:
     dependencies:
       - package: GRDB
       - package: Supabase
+      - package: Firebase
+        product: FirebaseCrashlytics
+      - package: Firebase
+        product: FirebaseAnalytics
     sources:
       - path: Sources/AiveraEcho
     resources:

@@ -5,7 +5,7 @@ Sister to [`aivera-echo-android`](https://github.com/kalliedb/aivera-echo-androi
 
 ## Stack
 
-- **Swift 5.10, SwiftUI** — minimum **iOS 17**
+- **Swift 5.10, SwiftUI** — minimum **iOS 16**
 - **Apple Speech (`SFSpeechRecognizer`)** — on-device transcription, free, no model bundle
 - **AVFoundation** — single `AVAudioEngine` feeds the recogniser AND a clip file (parity with Android's Vosk pipeline)
 - **Supabase Swift SDK** (next) — auth + cloud sync, shared project with Android
@@ -69,7 +69,8 @@ Sources/AiveraEcho/
 | M3.2b — Reminder sync | push dirty + soft-delete tombstones, pull + last-write-wins, foreground auto-sync | ✅ |
 | M3.3 — LTD entitlement check | is-entitled Edge Function on sign-in + foreground; plan badge in AccountSheet | ✅ |
 | M3.4 — Onboarding + Settings | 3-page onboarding, full Settings screen, delete-data/account, theme applied | ✅ |
-| M3.5 — Firebase Crashlytics + Analytics | iOS SDK via SPM, same Firebase project as Android | next |
+| M3.5 — Firebase Crashlytics + Analytics | iOS SDK via SPM, release-gated, same Firebase project as Android | ✅ (needs GoogleService-Info.plist) |
+| M4 — App Store prep | App Icon, launch screen, Privacy Manifest, screenshots, TestFlight CI | next (needs Apple Dev account) |
 | M3 — Notifications + scheduling | UNUserNotificationCenter + BGTaskScheduler, snooze, "Done" actions | |
 | M4 — Place reminders | Core Location, CLCircularRegion, in-app picker | |
 | M5 — Cloud sync | supabase-swift, sign-in, mirror Android reminders table | |
