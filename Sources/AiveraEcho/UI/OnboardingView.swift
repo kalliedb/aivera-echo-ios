@@ -76,7 +76,7 @@ struct OnboardingView: View {
         OnboardingPage(
             icon: "mic.fill",
             title: "Speak your reminders",
-            body: "Tap the mic and just say it — \u{201C}remind me to call Sam at 5pm.\u{201D} Echo turns your voice into a reminder, transcribed offline on your phone."
+            message: "Tap the mic and just say it — \u{201C}remind me to call Sam at 5pm.\u{201D} Echo turns your voice into a reminder, transcribed offline on your phone."
         )
     }
 
@@ -84,7 +84,7 @@ struct OnboardingView: View {
         OnboardingPage(
             icon: "bell.badge.fill",
             title: "A couple of permissions",
-            body: """
+            message: """
             Microphone — so we can hear what you want to be reminded about.
             Notifications — so we can alert you when a reminder is due.
             Voice never leaves your device for transcription.
@@ -101,7 +101,7 @@ struct OnboardingView: View {
         OnboardingPage(
             icon: "lock.fill",
             title: "Private by default",
-            body: "Your reminders live on this device. Optional cloud sync (which you turn on in Settings) backs them up and keeps them in step across your devices."
+            message: "Your reminders live on this device. Optional cloud sync (which you turn on in Settings) backs them up and keeps them in step across your devices."
         )
     }
 
@@ -128,7 +128,7 @@ struct OnboardingView: View {
 private struct OnboardingPage: View {
     let icon: String
     let title: String
-    let body: String
+    let message: String
     var actionLabel: String?     = nil
     var actionDisabled: Bool     = false
     var action: (() -> Void)?    = nil
@@ -150,7 +150,7 @@ private struct OnboardingPage: View {
                 .font(.title.weight(.semibold))
                 .multilineTextAlignment(.center)
 
-            Text(body)
+            Text(message)
                 .font(.body)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
