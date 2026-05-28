@@ -70,7 +70,8 @@ Sources/AiveraEcho/
 | M3.3 — LTD entitlement check | is-entitled Edge Function on sign-in + foreground; plan badge in AccountSheet | ✅ |
 | M3.4 — Onboarding + Settings | 3-page onboarding, full Settings screen, delete-data/account, theme applied | ✅ |
 | M3.5 — Firebase Crashlytics + Analytics | iOS SDK via SPM, release-gated, same Firebase project as Android | ✅ (needs GoogleService-Info.plist) |
-| M4 — App Store prep | App Icon, launch screen, Privacy Manifest, screenshots, TestFlight CI | next (needs Apple Dev account) |
+| M4.1 — Privacy Manifest + launch + icon catalog | PrivacyInfo.xcprivacy, LaunchBackground colour, AppIcon set (needs icon-1024.png) | ✅ (drop in the icon) |
+| M4.2 — TestFlight CI | App Store Connect app record + API key + fastlane upload lane | next |
 | M3 — Notifications + scheduling | UNUserNotificationCenter + BGTaskScheduler, snooze, "Done" actions | |
 | M4 — Place reminders | Core Location, CLCircularRegion, in-app picker | |
 | M5 — Cloud sync | supabase-swift, sign-in, mirror Android reminders table | |

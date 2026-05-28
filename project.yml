@@ -20,6 +20,7 @@ settings:
     ENABLE_BITCODE: NO
     SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
     GCC_TREAT_WARNINGS_AS_ERRORS: NO
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
 packages:
   GRDB:
@@ -56,7 +57,7 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen:
-          UIColorName: ""
+          UIColorName: "LaunchBackground"
         UIRequiredDeviceCapabilities:
           - armv7
         UISupportedInterfaceOrientations:

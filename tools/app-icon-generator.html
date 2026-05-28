@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Aivera Echo — App Icon Generator</title>
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; background:#0A0014; color:#F4E8FF;
+         display:flex; flex-direction:column; align-items:center; gap:24px; padding:40px; }
+  canvas { width:256px; height:256px; border-radius:48px; box-shadow:0 20px 60px rgba(168,85,247,0.4); }
+  button { font-size:16px; font-weight:600; padding:14px 28px; border:none; border-radius:100px;
+           background:linear-gradient(135deg,#A855F7,#6D28D9); color:#fff; cursor:pointer; }
+  p { color:#B6A8D4; max-width:520px; text-align:center; line-height:1.6; }
+  code { background:#1A0E2E; padding:2px 8px; border-radius:6px; color:#F0ABFC; }
+</style>
+</head>
+<body>
+  <h2>Aivera Echo — App Icon</h2>
+  <canvas id="c" width="1024" height="1024"></canvas>
+  <button onclick="download()">Download icon-1024.png</button>
+  <p>
+    Click the button, save the file, and drop <code>icon-1024.png</code> into
+    <code>Resources/Assets.xcassets/AppIcon.appiconset/</code> (next to its
+    <code>Contents.json</code>). Then commit + push.
+  </p>
+
+<script>
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+const S = 1024;
+
+// Solid base — App Store icons must NOT have transparency.
+ctx.fillStyle = '#0A0014';
+ctx.fillRect(0, 0, S, S);
+
+// Soft ambient glow behind the orb.
+const glow = ctx.createRadialGradient(S*0.5, S*0.5, 0, S*0.5, S*0.5, S*0.55);
+glow.addColorStop(0, 'rgba(168,85,247,0.35)');
+glow.addColorStop(1, 'rgba(10,0,20,0)');
+ctx.fillStyle = glow;
+ctx.fillRect(0, 0, S, S);
+
+// The orb — radial gradient matching the in-app logo.
+const cx = S*0.5, cy = S*0.5, r = S*0.34;
+const orb = ctx.createRadialGradient(
+  cx - r*0.35, cy - r*0.4, r*0.05,   // highlight offset top-left
+  cx, cy, r
+);
+orb.addColorStop(0.00, '#F4E8FF');
+orb.addColorStop(0.12, '#D9B8FF');
+orb.addColorStop(0.35, '#A855F7');
+orb.addColorStop(0.65, '#6D28D9');
+orb.addColorStop(1.00, '#2E0A5C');
+ctx.fillStyle = orb;
+ctx.beginPath();
+ctx.arc(cx, cy, r, 0, Math.PI*2);
+ctx.fill();
+
+// Inner white core (the "echo" point).
+const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, r*0.22);
+core.addColorStop(0, 'rgba(255,255,255,0.95)');
+core.addColorStop(1, 'rgba(255,255,255,0)');
+ctx.fillStyle = core;
+ctx.beginPath();
+ctx.arc(cx, cy, r*0.22, 0, Math.PI*2);
+ctx.fill();
+
+// Two echo rings.
+ctx.strokeStyle = 'rgba(240,171,252,0.35)';
+ctx.lineWidth = 6;
+[r*1.28, r*1.5].forEach(rr => {
+  ctx.beginPath();
+  ctx.arc(cx, cy, rr, 0, Math.PI*2);
+  ctx.stroke();
+});
+
+function download() {
+  const a = document.createElement('a');
+  a.download = 'icon-1024.png';
+  a.href = c.toDataURL('image/png');
+  a.click();
+}
+</script>
+</body>
+</html>
