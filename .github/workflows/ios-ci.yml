@@ -11,7 +11,8 @@ jobs:
     name: Build for Simulator
     # macos-15 ships Xcode 16+ — matches the project format that current XcodeGen emits.
     runs-on: macos-15
-    timeout-minutes: 25
+    # Firebase iOS SDK is large; first resolve/compile can be slow. Generous cap.
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
