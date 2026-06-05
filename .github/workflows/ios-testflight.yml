@@ -24,6 +24,10 @@ jobs:
       MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
       # Keychain is created in the Fastfile via create_keychain — no env vars needed.
       FASTLANE_HIDE_CHANGELOG: "true"
+      # Default is 3s × 4 retries which times out on a fresh runner while SPM
+      # resolves Firebase + Supabase + GRDB. Give it a real budget.
+      FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT: "180"
+      FASTLANE_XCODEBUILD_SETTINGS_RETRIES: "5"
 
     steps:
       - name: Checkout
