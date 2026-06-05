@@ -11,10 +11,12 @@ on:
 jobs:
   testflight:
     name: Build + upload to TestFlight
-    # macos-latest pins to the newest stable image — at the time of writing
-    # that's macos-26 (Tahoe) with Xcode 26 / iOS 26 SDK. Apple requires the
-    # iOS 26 SDK or later for App Store Connect uploads as of mid-2026.
-    runs-on: macos-latest
+    # Pin the macos-26 (Tahoe) image explicitly — macos-latest still maps to
+    # macos-15 (Xcode 16.4 / iOS 18.5 SDK) on GitHub Actions, and Apple now
+    # requires iOS 26 SDK or later for App Store Connect submissions. The
+    # explicit Xcode selection step below picks Xcode 26 if multiple are
+    # installed on the image.
+    runs-on: macos-26
     timeout-minutes: 60
 
     env:
@@ -36,8 +38,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Show toolchain
-        run: xcodebuild -version
+      - name: List Xcode installations
+        # Apple's validator requires Xcode 26+ (iOS 26 SDK). On macos-26 we
+        # expect /Applications/Xcode_26.x.app — list every Xcode so the log
+        # tells us what's actually here if the build picks the wrong one.
+        run: |
+          echo "--- Installed Xcode versions ---"
+          ls -1 /Applications/ | grep -i '^Xcode' || true
+          echo "--- xcode-select default ---"
+          xcode-select -p
+          echo "--- xcodebuild -version ---"
+          xcodebuild -version
+
+      - name: Select Xcode 26
+        # macos-26 may have multiple Xcodes installed; force Xcode 26 even if
+        # the image's default symlink still points at an older one. Pick the
+        # highest-numbered Xcode_26* available (handles patch versions).
+        run: |
+          XCODE_26=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$XCODE_26" ]; then
+            echo "::error::No Xcode 26 found on the runner. Available:"
+            ls -1 /Applications/ | grep -i '^Xcode' || true
+            exit 1
+          fi
+          echo "Selecting $XCODE_26"
+          sudo xcode-select -s "$XCODE_26/Contents/Developer"
+          xcodebuild -version
 
       - name: Install XcodeGen
         run: brew install xcodegen

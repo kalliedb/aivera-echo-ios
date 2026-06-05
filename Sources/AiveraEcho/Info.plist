@@ -4,9 +4,14 @@
 <dict>
   <!--
     Most keys (CFBundleDisplayName, usage descriptions, UIBackgroundModes, etc.)
-    are set by XcodeGen via project.yml's `info.properties` block and merged
-    into the built Info.plist at generate-time.
-    This file holds only the keys XcodeGen doesn't manage automatically.
+    are merged in by XcodeGen via project.yml's `info.properties` block.
+    The keys below are hard-coded here because XcodeGen's merge has been
+    observed not to propagate them into the final compiled Info.plist.
+
+    CFBundleIconName must be set to the asset-catalog icon-set name so
+    Apple's App Store Connect validator can find the bundled icons.
   -->
+  <key>CFBundleIconName</key>
+  <string>AppIcon</string>
 </dict>
 </plist>
