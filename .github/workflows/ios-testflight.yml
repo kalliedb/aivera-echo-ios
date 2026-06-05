@@ -11,7 +11,10 @@ on:
 jobs:
   testflight:
     name: Build + upload to TestFlight
-    runs-on: macos-15
+    # macos-latest pins to the newest stable image — at the time of writing
+    # that's macos-26 (Tahoe) with Xcode 26 / iOS 26 SDK. Apple requires the
+    # iOS 26 SDK or later for App Store Connect uploads as of mid-2026.
+    runs-on: macos-latest
     timeout-minutes: 60
 
     env:

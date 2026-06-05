@@ -56,6 +56,11 @@ targets:
         CFBundleDisplayName: Aivera Echo
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # Required for iOS 11+ apps that ship icons via asset catalog.
+        # Without this key, App Store Connect validation rejects the upload
+        # with "Missing required icon file" because the bundle has no entry
+        # pointing actool's generated icons to a catalog set.
+        CFBundleIconName: AppIcon
         UILaunchScreen:
           UIColorName: "LaunchBackground"
         UIRequiredDeviceCapabilities:
