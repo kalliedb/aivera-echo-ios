@@ -52,15 +52,21 @@ platform :ios do
 
     # 5. Build. Unique build number from the CI run number so each upload is
     #    accepted by TestFlight (passed via xcargs so we don't mutate the
-    #    generated .xcodeproj).
+    #    generated .xcodeproj). DEVELOPMENT_TEAM must be set as a build
+    #    setting so xcodebuild stamps the archive with the team — without it
+    #    -exportArchive errors with "No Team Found in Archive".
     build_number = ENV["GITHUB_RUN_NUMBER"] || Time.now.strftime("%Y%m%d%H%M")
+    team_id = ENV.fetch("APPLE_TEAM_ID")
     build_app(
       project:       PROJECT,
       scheme:        SCHEME,
       configuration: "Release",
       export_method: "app-store",
-      xcargs:        "CURRENT_PROJECT_VERSION=#{build_number}",
+      xcargs:        "CURRENT_PROJECT_VERSION=#{build_number} DEVELOPMENT_TEAM=#{team_id}",
       export_options: {
+        method:               "app-store",
+        signingStyle:         "manual",
+        teamID:               team_id,
         provisioningProfiles: {
           BUNDLE => "match AppStore #{BUNDLE}"
         }
