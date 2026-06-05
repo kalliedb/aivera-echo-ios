@@ -39,10 +39,9 @@ jobs:
       - name: Set up Ruby + fastlane (bundler)
         uses: ruby/setup-ruby@v1
         with:
-          # Ruby 3.3 dropped multi_json/rexml from default gems, which fastlane's
-          # transitive deps (representable -> google-apis-*) still expect. 3.2
-          # avoids that whole compat headache.
-          ruby-version: "3.2"
+          ruby-version: "3.3"
+          # The Gemfile lists multi_json/rexml/json explicitly so bundler's
+          # frozen-mode check doesn't choke on fastlane's transitive requires.
           bundler-cache: true
 
       - name: Build + upload to TestFlight
