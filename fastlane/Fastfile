@@ -149,9 +149,10 @@ platform :ios do
 
     # 6. Upload to TestFlight. Skip waiting for Apple's processing so CI exits
     #    promptly; the build appears in TestFlight a few minutes later.
+    #    No explicit `ipa:` — fastlane reads IPA_OUTPUT_PATH from lane
+    #    context, which still points at the IPA we rewrote in step 5b.
     upload_to_testflight(
       api_key:                          api_key,
-      ipa:                              "../AiveraEcho.ipa",
       skip_waiting_for_build_processing: true,
       distribute_external:              false
     )
