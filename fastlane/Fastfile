@@ -83,10 +83,75 @@ platform :ios do
       }
     )
 
+    # 5b. NUCLEAR: inspect the built IPA and force-inject CFBundleIconName +
+    #     legacy icon PNGs at the bundle root, then re-sign. After four
+    #     consecutive runs of altool rejecting the upload with "missing
+    #     CFBundleIconName" — despite the key being in Sources/Info.plist,
+    #     in XcodeGen's info.properties, and in INFOPLIST_KEY_* — we stop
+    #     trusting xcodebuild's plist handling and modify the IPA directly.
+    Dir.chdir("..") do
+      ipa = "AiveraEcho.ipa"
+      work = "_ipa_fix"
+      sh("rm -rf #{work} && mkdir #{work}")
+      sh("unzip -o #{ipa} -d #{work} > /dev/null")
+
+      app = "#{work}/Payload/AiveraEcho.app"
+      plist = "#{app}/Info.plist"
+
+      sh("echo '--- IPA bundle contents (icon-related) ---'")
+      sh("ls -la #{app} | grep -iE '(icon|car|plist)' || true")
+      sh("echo '--- IPA Info.plist BEFORE fix ---'")
+      sh("/usr/libexec/PlistBuddy -c 'Print' #{plist} | head -60 || true")
+      sh("echo '--- CFBundleIconName check ---'")
+      sh("/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' #{plist} 2>&1 || echo 'KEY MISSING'")
+
+      # Force-inject CFBundleIconName.
+      sh("/usr/libexec/PlistBuddy -c 'Add :CFBundleIconName string AppIcon' #{plist} 2>/dev/null || /usr/libexec/PlistBuddy -c 'Set :CFBundleIconName AppIcon' #{plist}")
+
+      # Copy legacy icon PNGs into the bundle root with the names Apple's
+      # validator looks for. These satisfy errors 90022 (120) and 90023 (152)
+      # even if the asset catalog ones don't.
+      icon_src = "Resources/Assets.xcassets/AppIcon.appiconset"
+      legacy_names = {
+        120 => "AppIcon60x60@2x.png",
+        180 => "AppIcon60x60@3x.png",
+        152 => "AppIcon76x76@2x.png",
+        167 => "AppIcon83.5x83.5@2x.png",
+        76  => "AppIcon76x76.png",
+        80  => "AppIcon40x40@2x.png",
+        120 => "AppIcon40x40@3x.png",  # duplicates 120; overwrites
+      }
+      [120, 152, 167, 180, 76, 80, 60, 87, 58, 40, 29, 20].each do |size|
+        src = "#{icon_src}/icon-#{size}.png"
+        dst = "#{app}/AppIcon-#{size}.png"
+        sh("[ -f #{src} ] && cp #{src} #{dst} || true")
+      end
+      # Also drop the two specific names altool grumbles about:
+      sh("cp #{icon_src}/icon-120.png #{app}/AppIcon60x60@2x.png || true")
+      sh("cp #{icon_src}/icon-152.png #{app}/AppIcon76x76@2x.png || true")
+
+      sh("echo '--- IPA Info.plist AFTER fix ---'")
+      sh("/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' #{plist}")
+
+      # Re-sign the bundle (matchcert in keychain). codesign needs the
+      # entitlements xml extracted from the original signature.
+      sh("codesign -d --entitlements :- #{app} > #{work}/entitlements.plist 2>/dev/null || true")
+      identity = sh("security find-identity -v -p codesigning #{KEYCHAIN_NAME} | grep 'iPhone Distribution\\|Apple Distribution' | head -n1 | awk -F'\"' '{print $2}'").strip
+      raise "No distribution identity found in keychain" if identity.empty?
+      UI.message("Re-signing with identity: #{identity}")
+      sh("codesign --force --sign '#{identity}' --entitlements #{work}/entitlements.plist --timestamp #{app}")
+
+      # Re-zip into the IPA filename fastlane will pick up.
+      sh("rm #{ipa}")
+      sh("cd #{work} && zip -qr ../#{ipa} Payload")
+      UI.success("Patched IPA written: #{ipa}")
+    end
+
     # 6. Upload to TestFlight. Skip waiting for Apple's processing so CI exits
     #    promptly; the build appears in TestFlight a few minutes later.
     upload_to_testflight(
       api_key:                          api_key,
+      ipa:                              "../AiveraEcho.ipa",
       skip_waiting_for_build_processing: true,
       distribute_external:              false
     )
