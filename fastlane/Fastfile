@@ -38,16 +38,14 @@ platform :ios do
     # 3. Generate the Xcode project from project.yml (it's not committed).
     Dir.chdir("..") { sh("xcodegen generate") }
 
-    # 3b. Debug: print the generated Info.plist and the icon catalog so we
-    #     can verify exactly what xcodebuild gets fed. (Apple's validator
-    #     repeatedly rejected uploads for missing CFBundleIconName even
-    #     when project.yml's info.properties contained it.)
+    # 3b. Verify Info.plist on disk has CFBundleIconName and the AppIcon set
+    #     contains pre-rendered PNG sizes. The workflow renders them via sips
+    #     before xcodegen runs, so by here we expect 11 icon-NNN.png files.
     Dir.chdir("..") do
-      sh("echo '--- Sources/AiveraEcho/Info.plist after xcodegen ---'")
-      sh("cat Sources/AiveraEcho/Info.plist || true")
-      sh("echo '--- Resources/Assets.xcassets/AppIcon.appiconset/ ---'")
-      sh("ls -la Resources/Assets.xcassets/AppIcon.appiconset/ || true")
-      sh("cat Resources/Assets.xcassets/AppIcon.appiconset/Contents.json || true")
+      sh("echo '--- Sources/AiveraEcho/Info.plist ---'")
+      sh("grep -A1 CFBundleIconName Sources/AiveraEcho/Info.plist || true")
+      sh("echo '--- AppIcon catalog ---'")
+      sh("ls Resources/Assets.xcassets/AppIcon.appiconset/ || true")
     end
 
     # 4. Fetch (or, on first run, create + push) the distribution cert +

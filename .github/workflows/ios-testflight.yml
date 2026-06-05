@@ -68,6 +68,18 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      - name: Pre-render AppIcon sizes from icon-1024.png
+        # Apple's App Store validator (altool) checks for the icons inside the
+        # IPA, regardless of asset-catalog auto-generation. We pre-render every
+        # legacy size with macOS's built-in `sips` so actool just embeds the
+        # files as-is — no reliance on its single-1024-universal expansion.
+        run: |
+          cd Resources/Assets.xcassets/AppIcon.appiconset
+          for size in 20 29 40 58 60 80 87 120 152 167 180; do
+            sips -s format png -z "$size" "$size" icon-1024.png --out "icon-$size.png"
+          done
+          ls -la
+
       - name: Set up Ruby + fastlane (bundler)
         uses: ruby/setup-ruby@v1
         with:

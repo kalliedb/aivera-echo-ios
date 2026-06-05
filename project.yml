@@ -21,11 +21,6 @@ settings:
     SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
     GCC_TREAT_WARNINGS_AS_ERRORS: NO
     ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-    # Xcode 13+ Info.plist key injection. xcodebuild merges these directly
-    # into the bundle's Info.plist at build time, bypassing any file-level
-    # processing that strips/ignores keys. Required for Apple's App Store
-    # Connect validator to locate the asset-catalog AppIcon set.
-    INFOPLIST_KEY_CFBundleIconName: AppIcon
 
 packages:
   GRDB:
@@ -55,45 +50,17 @@ targets:
     resources:
       - path: Resources
         optional: true
-    info:
-      path: Sources/AiveraEcho/Info.plist
-      properties:
-        CFBundleDisplayName: Aivera Echo
-        CFBundleShortVersionString: $(MARKETING_VERSION)
-        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        # Required for iOS 11+ apps that ship icons via asset catalog.
-        # Without this key, App Store Connect validation rejects the upload
-        # with "Missing required icon file" because the bundle has no entry
-        # pointing actool's generated icons to a catalog set.
-        CFBundleIconName: AppIcon
-        UILaunchScreen:
-          UIColorName: "LaunchBackground"
-        UIRequiredDeviceCapabilities:
-          - armv7
-        UISupportedInterfaceOrientations:
-          - UIInterfaceOrientationPortrait
-        UISupportedInterfaceOrientations~ipad:
-          - UIInterfaceOrientationPortrait
-          - UIInterfaceOrientationPortraitUpsideDown
-          - UIInterfaceOrientationLandscapeLeft
-          - UIInterfaceOrientationLandscapeRight
-        NSMicrophoneUsageDescription: "Aivera Echo needs your microphone to record voice reminders."
-        NSSpeechRecognitionUsageDescription: "Echo uses on-device speech recognition to turn your voice into reminders."
-        NSLocationWhenInUseUsageDescription: "Echo uses your location for place-based reminders."
-        NSLocationAlwaysAndWhenInUseUsageDescription: "Echo uses your location in the background to trigger place-based reminders even when the app is closed."
-        # Supabase project URL + anon (publishable) key. Anon key is designed
-        # to be public-safe (RLS protects the data); committing it is fine.
-        # If you ever rotate the key, just update it here.
-        SUPABASE_URL: "https://rnoofzjmoalcdygksvos.supabase.co"
-        SUPABASE_ANON_KEY: "sb_publishable_CSuu1uf-VdoMyBxIn6J2IA_7xTW67c_"
-        UIBackgroundModes:
-          - audio
-          - location
+    # NB: we deliberately do NOT use XcodeGen's `info` block. That block
+    # writes/merges into the Info.plist at generate time and was silently
+    # dropping CFBundleIconName, causing App Store Connect to reject every
+    # upload. INFOPLIST_FILE is set in the per-target settings.base below
+    # so xcodebuild copies our committed Info.plist verbatim.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: solutions.aivera.echo
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: NO
+        INFOPLIST_FILE: Sources/AiveraEcho/Info.plist
         # Disable signing for CI / Simulator builds; Xcode applies dev signing locally.
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_IDENTITY: ""

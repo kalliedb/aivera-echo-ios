@@ -3,15 +3,90 @@
 <plist version="1.0">
 <dict>
   <!--
-    Most keys (CFBundleDisplayName, usage descriptions, UIBackgroundModes, etc.)
-    are merged in by XcodeGen via project.yml's `info.properties` block.
-    The keys below are hard-coded here because XcodeGen's merge has been
-    observed not to propagate them into the final compiled Info.plist.
-
-    CFBundleIconName must be set to the asset-catalog icon-set name so
-    Apple's App Store Connect validator can find the bundled icons.
+    Full static Info.plist. We do NOT use XcodeGen's info.properties merge
+    anymore because it was eating CFBundleIconName during the merge step.
+    project.yml now just points INFOPLIST_FILE here and xcodebuild copies
+    this file into the bundle verbatim (with $(VAR) substitution).
   -->
+
+  <!-- Standard bundle keys (xcodebuild substitutes $() at build time). -->
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleDisplayName</key>
+  <string>Aivera Echo</string>
+  <key>CFBundleExecutable</key>
+  <string>$(EXECUTABLE_NAME)</string>
+  <key>CFBundleIdentifier</key>
+  <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>$(PRODUCT_NAME)</string>
+  <key>CFBundlePackageType</key>
+  <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+  <key>CFBundleShortVersionString</key>
+  <string>$(MARKETING_VERSION)</string>
+  <key>CFBundleVersion</key>
+  <string>$(CURRENT_PROJECT_VERSION)</string>
+
+  <!-- Required for iOS 11+ apps that ship icons via asset catalog. -->
   <key>CFBundleIconName</key>
   <string>AppIcon</string>
+
+  <key>LSRequiresIPhoneOS</key>
+  <true/>
+
+  <key>UILaunchScreen</key>
+  <dict>
+    <key>UIColorName</key>
+    <string>LaunchBackground</string>
+  </dict>
+
+  <key>UIRequiredDeviceCapabilities</key>
+  <array>
+    <string>armv7</string>
+  </array>
+
+  <key>UISupportedInterfaceOrientations</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+  </array>
+  <key>UISupportedInterfaceOrientations~ipad</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+    <string>UIInterfaceOrientationPortraitUpsideDown</string>
+    <string>UIInterfaceOrientationLandscapeLeft</string>
+    <string>UIInterfaceOrientationLandscapeRight</string>
+  </array>
+
+  <!-- Privacy usage descriptions. -->
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Aivera Echo needs your microphone to record voice reminders.</string>
+  <key>NSSpeechRecognitionUsageDescription</key>
+  <string>Echo uses on-device speech recognition to turn your voice into reminders.</string>
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>Echo uses your location for place-based reminders.</string>
+  <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+  <string>Echo uses your location in the background to trigger place-based reminders even when the app is closed.</string>
+
+  <key>UIBackgroundModes</key>
+  <array>
+    <string>audio</string>
+    <string>location</string>
+  </array>
+
+  <!-- Supabase config. Anon key is RLS-protected → safe to ship. -->
+  <key>SUPABASE_URL</key>
+  <string>https://rnoofzjmoalcdygksvos.supabase.co</string>
+  <key>SUPABASE_ANON_KEY</key>
+  <string>sb_publishable_CSuu1uf-VdoMyBxIn6J2IA_7xTW67c_</string>
+
+  <!-- Export-compliance declaration. We don't ship custom crypto and only use
+       Apple's standard system frameworks (TLS via URLSession, CommonCrypto
+       indirectly via GRDB's file protection). Setting this to false skips the
+       per-build "Have you added any non-exempt encryption?" question in
+       App Store Connect. -->
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
 </dict>
 </plist>
