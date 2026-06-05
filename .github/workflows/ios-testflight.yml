@@ -22,8 +22,7 @@ jobs:
       MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
       MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
       MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
-      # Non-interactive keychain for match on CI.
-      MATCH_KEYCHAIN_NAME: fastlane_tmp_keychain
+      # Keychain is created in the Fastfile via create_keychain — no env vars needed.
       FASTLANE_HIDE_CHANGELOG: "true"
 
     steps:

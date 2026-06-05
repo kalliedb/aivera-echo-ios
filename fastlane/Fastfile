@@ -4,6 +4,11 @@ PROJECT = "AiveraEcho.xcodeproj"
 SCHEME  = "AiveraEcho"
 BUNDLE  = "solutions.aivera.echo"
 
+# Temp keychain used by match on CI. Password is ephemeral — keychain is
+# created fresh each run and discarded with the runner.
+KEYCHAIN_NAME     = "echo_ci"
+KEYCHAIN_PASSWORD = "echo_ci_temp_password"
+
 platform :ios do
 
   # Build a signed App Store archive and upload it to TestFlight.
@@ -19,20 +24,33 @@ platform :ios do
       is_key_content_base64: false
     )
 
-    # 2. Generate the Xcode project from project.yml (it's not committed).
+    # 2. Fresh temp keychain — match installs the distribution cert into it
+    #    so the subsequent build_app can find the private key.
+    create_keychain(
+      name:             KEYCHAIN_NAME,
+      password:         KEYCHAIN_PASSWORD,
+      default_keychain: true,
+      unlock:           true,
+      timeout:          3600,
+      lock_when_sleeps: false
+    )
+
+    # 3. Generate the Xcode project from project.yml (it's not committed).
     Dir.chdir("..") { sh("xcodegen generate") }
 
-    # 3. Fetch (or, on first run, create + push) the distribution cert +
+    # 4. Fetch (or, on first run, create + push) the distribution cert +
     #    provisioning profile. readonly:false lets the very first CI run
     #    bootstrap the cert repo; later runs just reuse what's there.
     match(
-      type:           "appstore",
-      app_identifier: BUNDLE,
-      api_key:        api_key,
-      readonly:       false
+      type:              "appstore",
+      app_identifier:    BUNDLE,
+      api_key:           api_key,
+      readonly:          false,
+      keychain_name:     KEYCHAIN_NAME,
+      keychain_password: KEYCHAIN_PASSWORD
     )
 
-    # 4. Build. Unique build number from the CI run number so each upload is
+    # 5. Build. Unique build number from the CI run number so each upload is
     #    accepted by TestFlight (passed via xcargs so we don't mutate the
     #    generated .xcodeproj).
     build_number = ENV["GITHUB_RUN_NUMBER"] || Time.now.strftime("%Y%m%d%H%M")
@@ -49,7 +67,7 @@ platform :ios do
       }
     )
 
-    # 5. Upload to TestFlight. Skip waiting for Apple's processing so CI exits
+    # 6. Upload to TestFlight. Skip waiting for Apple's processing so CI exits
     #    promptly; the build appears in TestFlight a few minutes later.
     upload_to_testflight(
       api_key:                          api_key,
