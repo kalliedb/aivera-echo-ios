@@ -21,6 +21,11 @@ settings:
     SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
     GCC_TREAT_WARNINGS_AS_ERRORS: NO
     ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    # Xcode 13+ Info.plist key injection. xcodebuild merges these directly
+    # into the bundle's Info.plist at build time, bypassing any file-level
+    # processing that strips/ignores keys. Required for Apple's App Store
+    # Connect validator to locate the asset-catalog AppIcon set.
+    INFOPLIST_KEY_CFBundleIconName: AppIcon
 
 packages:
   GRDB:
