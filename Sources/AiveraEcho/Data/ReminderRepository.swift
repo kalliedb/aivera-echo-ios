@@ -86,11 +86,16 @@ final class ReminderRepository: ObservableObject {
     // MARK: - Local writes (mark dirty so the next sync pushes)
 
     func add(_ reminder: Reminder) async throws {
-        let copy = with(reminder) { $0.dirty = true }
+        // GRDB's `insert(db)` is `mutating` (it can set auto-incremented PKs
+        // even though we don't use them), so we need a `var` to call it.
+        // Bind the var INSIDE the writer closure so it isn't captured across
+        // the actor boundary — only the immutable `snapshot` crosses.
+        let snapshot = with(reminder) { $0.dirty = true }
         try await database.writer.write { db in
-            try copy.insert(db)
+            var row = snapshot
+            try row.insert(db)
         }
-        await arm(copy)
+        await arm(snapshot)
     }
 
     func update(_ reminder: Reminder) async throws {
@@ -154,14 +159,18 @@ final class ReminderRepository: ObservableObject {
 
     /// Insert a row from sync without flipping dirty.
     func applyRemoteInsert(_ reminder: Reminder) async throws {
-        let copy = with(reminder) {
+        // `insert(db)` is mutating — same pattern as add() above: snapshot
+        // is immutable across the actor boundary, `row` is a local var
+        // declared inside the closure (no capture).
+        let snapshot = with(reminder) {
             $0.dirty = false
             $0.pendingDelete = false
         }
         try await database.writer.write { db in
-            try copy.insert(db)
+            var row = snapshot
+            try row.insert(db)
         }
-        await arm(copy)
+        await arm(snapshot)
     }
 
     /// Update a row from sync without flipping dirty.
