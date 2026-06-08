@@ -47,9 +47,12 @@ targets:
         product: FirebaseAnalytics
     sources:
       - path: Sources/AiveraEcho
-    resources:
+      # Resources MUST be in `sources:` (not `resources:`) for XcodeGen to
+      # auto-detect Assets.xcassets and wire it through actool. With it under
+      # `resources:`, xcodebuild produced bundles with only Info.plist —
+      # no compiled Assets.car, no icon PNGs — leading to repeated upload
+      # rejections at App Store Connect.
       - path: Resources
-        optional: true
     # NB: we deliberately do NOT use XcodeGen's `info` block. That block
     # writes/merges into the Info.plist at generate time and was silently
     # dropping CFBundleIconName, causing App Store Connect to reject every

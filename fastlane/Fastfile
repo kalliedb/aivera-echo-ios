@@ -108,29 +108,46 @@ platform :ios do
       # Force-inject CFBundleIconName.
       sh("/usr/libexec/PlistBuddy -c 'Add :CFBundleIconName string AppIcon' #{plist} 2>/dev/null || /usr/libexec/PlistBuddy -c 'Set :CFBundleIconName AppIcon' #{plist}")
 
-      # Copy legacy icon PNGs into the bundle root with the names Apple's
-      # validator looks for. These satisfy errors 90022 (120) and 90023 (152)
-      # even if the asset catalog ones don't.
-      icon_src = "Resources/Assets.xcassets/AppIcon.appiconset"
-      legacy_names = {
-        120 => "AppIcon60x60@2x.png",
-        180 => "AppIcon60x60@3x.png",
-        152 => "AppIcon76x76@2x.png",
-        167 => "AppIcon83.5x83.5@2x.png",
-        76  => "AppIcon76x76.png",
-        80  => "AppIcon40x40@2x.png",
-        120 => "AppIcon40x40@3x.png",  # duplicates 120; overwrites
-      }
-      [120, 152, 167, 180, 76, 80, 60, 87, 58, 40, 29, 20].each do |size|
-        src = "#{icon_src}/icon-#{size}.png"
-        dst = "#{app}/AppIcon-#{size}.png"
-        sh("[ -f #{src} ] && cp #{src} #{dst} || true")
+      # Inject the full CFBundleIcons structure that altool also checks.
+      # CFBundleIconName alone wasn't enough — Apple's validator also wants
+      # CFBundleIcons.CFBundlePrimaryIcon.CFBundleIconFiles enumerated.
+      pb = "/usr/libexec/PlistBuddy"
+      [
+        "Delete :CFBundleIcons",
+        "Add :CFBundleIcons dict",
+        "Add :CFBundleIcons:CFBundlePrimaryIcon dict",
+        "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName string AppIcon",
+        "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles array",
+        "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles:0 string AppIcon60x60",
+        "Delete :CFBundleIcons~ipad",
+        "Add :CFBundleIcons~ipad dict",
+        "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon dict",
+        "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconName string AppIcon",
+        "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles array",
+        "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles:0 string AppIcon60x60",
+        "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles:1 string AppIcon76x76",
+      ].each do |cmd|
+        sh("#{pb} -c '#{cmd}' #{plist} 2>/dev/null || true")
       end
-      # Also drop the two specific names altool grumbles about:
-      sh("cp #{icon_src}/icon-120.png #{app}/AppIcon60x60@2x.png || true")
-      sh("cp #{icon_src}/icon-152.png #{app}/AppIcon76x76@2x.png || true")
 
-      sh("echo '--- IPA Info.plist AFTER fix ---'")
+      # Copy legacy icon PNGs into the bundle root with the exact filenames
+      # Apple's validator looks for outside the asset catalog. Apple matches
+      # filename, not size, so the names must be precise.
+      icon_src = "Resources/Assets.xcassets/AppIcon.appiconset"
+      [
+        ["icon-120.png", "AppIcon60x60@2x.png"],   # iPhone 60pt @2x
+        ["icon-180.png", "AppIcon60x60@3x.png"],   # iPhone 60pt @3x
+        ["icon-76.png",  "AppIcon76x76.png"],       # iPad 76pt @1x
+        ["icon-152.png", "AppIcon76x76@2x.png"],   # iPad 76pt @2x
+        ["icon-167.png", "AppIcon83.5x83.5@2x.png"], # iPad Pro 83.5pt @2x
+      ].each do |src, dst|
+        sh("cp #{icon_src}/#{src} #{app}/#{dst}")
+      end
+
+      sh("echo '--- IPA bundle contents AFTER icon copy ---'")
+      sh("ls #{app}/ | grep -i 'appicon\\|icon\\|plist' || true")
+      sh("echo '--- IPA Info.plist CFBundleIcons AFTER fix ---'")
+      sh("/usr/libexec/PlistBuddy -c 'Print :CFBundleIcons' #{plist}")
       sh("/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' #{plist}")
 
       # Re-sign the bundle (matchcert in keychain). codesign needs the
@@ -145,6 +162,16 @@ platform :ios do
       sh("rm #{ipa}")
       sh("cd #{work} && zip -qr ../#{ipa} Payload")
       UI.success("Patched IPA written: #{ipa}")
+
+      # FINAL verification: unzip the IPA we just wrote and confirm the
+      # patched Info.plist + icon files actually made it through. If this
+      # shows the bundle in good shape, any altool rejection points to a
+      # validator-side issue rather than our patch.
+      sh("echo '=== FINAL IPA VERIFICATION ==='")
+      sh("unzip -l #{ipa} | grep -iE '(info\\.plist|appicon|\\.car)' | head -30")
+      sh("unzip -p #{ipa} Payload/AiveraEcho.app/Info.plist | /usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' /dev/stdin")
+      sh("unzip -p #{ipa} Payload/AiveraEcho.app/Info.plist | /usr/libexec/PlistBuddy -c 'Print :CFBundleIcons' /dev/stdin | head -10")
+      sh("echo '=== END VERIFICATION ==='")
     end
 
     # 6. Upload to TestFlight. Skip waiting for Apple's processing so CI exits
