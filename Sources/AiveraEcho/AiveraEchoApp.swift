@@ -17,10 +17,12 @@ struct AiveraEchoApp: App {
                 .environmentObject(appDelegate.syncEngine)
                 .environmentObject(appDelegate.entitlementStore)
                 .environmentObject(appDelegate.settingsStore)
-                .onChange(of: scenePhase) { newPhase in
+                .onChange(of: scenePhase) { _, newPhase in
                     // Sync + refresh entitlement when the app comes to the foreground.
                     // Both are cheap when there's nothing to do.
-                    // (Two-argument form is iOS 17+; we target iOS 16.)
+                    // Two-argument closure is required since the iOS 16
+                    // single-arg form was deprecated in iOS 17. Our minimum
+                    // deployment target is iOS 17, so no @available guard needed.
                     if newPhase == .active {
                         Task {
                             await appDelegate.syncEngine.syncNow()

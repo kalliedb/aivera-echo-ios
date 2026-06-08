@@ -111,9 +111,11 @@ struct OnboardingView: View {
     private func requestPermissions() async {
         permissionsRequested = true
 
-        // Microphone
+        // Microphone — AVAudioApplication.requestRecordPermission replaces
+        // AVAudioSession.sharedInstance().requestRecordPermission which was
+        // deprecated in iOS 17. Same callback signature.
         _ = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
-            AVAudioSession.sharedInstance().requestRecordPermission { cont.resume(returning: $0) }
+            AVAudioApplication.requestRecordPermission { cont.resume(returning: $0) }
         }
         // Speech recognition (used by SpeechRecognizer in the home screen)
         _ = await withCheckedContinuation { (cont: CheckedContinuation<SFSpeechRecognizerAuthorizationStatus, Never>) in

@@ -2,6 +2,17 @@ import Combine
 import Foundation
 import GRDB
 
+/// Returns a copy of `value` after applying the given mutation. Used here to
+/// build an immutable Reminder snapshot before passing it into the
+/// `database.writer.write { ... }` closure, which runs on GRDB's writer
+/// queue. Swift 6 strict concurrency flags `var` captures crossing that
+/// boundary as a data-race risk; a `let`-bound snapshot has no such risk.
+private func with<T>(_ value: T, _ mutate: (inout T) -> Void) -> T {
+    var copy = value
+    mutate(&copy)
+    return copy
+}
+
 /// File-backed reminder repository. Each write to the DB also keeps the
 /// system notification queue in sync (schedule/cancel/reschedule) via the
 /// injected `NotificationScheduler`.
@@ -75,8 +86,7 @@ final class ReminderRepository: ObservableObject {
     // MARK: - Local writes (mark dirty so the next sync pushes)
 
     func add(_ reminder: Reminder) async throws {
-        var copy = reminder
-        copy.dirty = true
+        let copy = with(reminder) { $0.dirty = true }
         try await database.writer.write { db in
             try copy.insert(db)
         }
@@ -84,9 +94,10 @@ final class ReminderRepository: ObservableObject {
     }
 
     func update(_ reminder: Reminder) async throws {
-        var copy = reminder
-        copy.dirty = true
-        copy.updatedAt = Date()
+        let copy = with(reminder) {
+            $0.dirty = true
+            $0.updatedAt = Date()
+        }
         try await database.writer.write { db in
             try copy.update(db)
         }
@@ -97,10 +108,11 @@ final class ReminderRepository: ObservableObject {
     /// the UI (filtered in observe()), the next sync pushes the tombstone, and
     /// the SyncEngine hard-deletes locally once Supabase ACKs the push.
     func delete(_ reminder: Reminder) async throws {
-        var soft = reminder
-        soft.pendingDelete = true
-        soft.dirty = true
-        soft.updatedAt = Date()
+        let soft = with(reminder) {
+            $0.pendingDelete = true
+            $0.dirty = true
+            $0.updatedAt = Date()
+        }
         try await database.writer.write { db in
             try soft.update(db)
         }
@@ -142,9 +154,10 @@ final class ReminderRepository: ObservableObject {
 
     /// Insert a row from sync without flipping dirty.
     func applyRemoteInsert(_ reminder: Reminder) async throws {
-        var copy = reminder
-        copy.dirty = false
-        copy.pendingDelete = false
+        let copy = with(reminder) {
+            $0.dirty = false
+            $0.pendingDelete = false
+        }
         try await database.writer.write { db in
             try copy.insert(db)
         }
@@ -153,9 +166,10 @@ final class ReminderRepository: ObservableObject {
 
     /// Update a row from sync without flipping dirty.
     func applyRemoteUpdate(_ reminder: Reminder) async throws {
-        var copy = reminder
-        copy.dirty = false
-        copy.pendingDelete = false
+        let copy = with(reminder) {
+            $0.dirty = false
+            $0.pendingDelete = false
+        }
         try await database.writer.write { db in
             try copy.update(db)
         }
@@ -183,10 +197,11 @@ final class ReminderRepository: ObservableObject {
         guard let r = recentlyDeleted else { return }
         recentlyDeleted = nil
 
-        var restored = r
-        restored.pendingDelete = false
-        restored.dirty = true
-        restored.updatedAt = Date()
+        let restored = with(r) {
+            $0.pendingDelete = false
+            $0.dirty = true
+            $0.updatedAt = Date()
+        }
         try? await database.writer.write { db in
             try restored.update(db)
         }
