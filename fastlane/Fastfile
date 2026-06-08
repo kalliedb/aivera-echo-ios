@@ -83,101 +83,20 @@ platform :ios do
       }
     )
 
-    # 5b. NUCLEAR: inspect the built IPA and force-inject CFBundleIconName +
-    #     legacy icon PNGs at the bundle root, then re-sign. After four
-    #     consecutive runs of altool rejecting the upload with "missing
-    #     CFBundleIconName" — despite the key being in Sources/Info.plist,
-    #     in XcodeGen's info.properties, and in INFOPLIST_KEY_* — we stop
-    #     trusting xcodebuild's plist handling and modify the IPA directly.
+    # 5b. Sanity check the built IPA. With Resources/ correctly under
+    #     XcodeGen `sources:` (tf13+), actool produces a valid bundle with
+    #     Assets.car + auto-generated icon files + CFBundleIcons. No
+    #     post-build patching needed — verify and upload as-is.
     Dir.chdir("..") do
       ipa = "AiveraEcho.ipa"
-      work = "_ipa_fix"
-      sh("rm -rf #{work} && mkdir #{work}")
-      sh("unzip -o #{ipa} -d #{work} > /dev/null")
-
-      app = "#{work}/Payload/AiveraEcho.app"
-      plist = "#{app}/Info.plist"
-
-      sh("echo '--- IPA bundle contents (icon-related) ---'")
-      sh("ls -la #{app} | grep -iE '(icon|car|plist)' || true")
-      sh("echo '--- IPA Info.plist BEFORE fix ---'")
-      sh("/usr/libexec/PlistBuddy -c 'Print' #{plist} | head -60 || true")
-      sh("echo '--- CFBundleIconName check ---'")
-      sh("/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' #{plist} 2>&1 || echo 'KEY MISSING'")
-
-      # Force-inject CFBundleIconName.
-      sh("/usr/libexec/PlistBuddy -c 'Add :CFBundleIconName string AppIcon' #{plist} 2>/dev/null || /usr/libexec/PlistBuddy -c 'Set :CFBundleIconName AppIcon' #{plist}")
-
-      # Inject the full CFBundleIcons structure that altool also checks.
-      # CFBundleIconName alone wasn't enough — Apple's validator also wants
-      # CFBundleIcons.CFBundlePrimaryIcon.CFBundleIconFiles enumerated.
-      pb = "/usr/libexec/PlistBuddy"
-      [
-        "Delete :CFBundleIcons",
-        "Add :CFBundleIcons dict",
-        "Add :CFBundleIcons:CFBundlePrimaryIcon dict",
-        "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName string AppIcon",
-        "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles array",
-        "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles:0 string AppIcon60x60",
-        "Delete :CFBundleIcons~ipad",
-        "Add :CFBundleIcons~ipad dict",
-        "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon dict",
-        "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconName string AppIcon",
-        "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles array",
-        "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles:0 string AppIcon60x60",
-        "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles:1 string AppIcon76x76",
-      ].each do |cmd|
-        sh("#{pb} -c '#{cmd}' #{plist} 2>/dev/null || true")
-      end
-
-      # Copy legacy icon PNGs into the bundle root with the exact filenames
-      # Apple's validator looks for outside the asset catalog. Apple matches
-      # filename, not size, so the names must be precise.
-      icon_src = "Resources/Assets.xcassets/AppIcon.appiconset"
-      [
-        ["icon-120.png", "AppIcon60x60@2x.png"],   # iPhone 60pt @2x
-        ["icon-180.png", "AppIcon60x60@3x.png"],   # iPhone 60pt @3x
-        ["icon-76.png",  "AppIcon76x76.png"],       # iPad 76pt @1x
-        ["icon-152.png", "AppIcon76x76@2x.png"],   # iPad 76pt @2x
-        ["icon-167.png", "AppIcon83.5x83.5@2x.png"], # iPad Pro 83.5pt @2x
-      ].each do |src, dst|
-        sh("cp #{icon_src}/#{src} #{app}/#{dst}")
-      end
-
-      sh("echo '--- IPA bundle contents AFTER icon copy ---'")
-      sh("ls #{app}/ | grep -i 'appicon\\|icon\\|plist' || true")
-      sh("echo '--- IPA Info.plist CFBundleIcons AFTER fix ---'")
-      sh("/usr/libexec/PlistBuddy -c 'Print :CFBundleIcons' #{plist}")
-      sh("/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' #{plist}")
-
-      # Re-sign the bundle (matchcert in keychain). codesign needs the
-      # entitlements xml extracted from the original signature.
-      sh("codesign -d --entitlements :- #{app} > #{work}/entitlements.plist 2>/dev/null || true")
-      identity = sh("security find-identity -v -p codesigning #{KEYCHAIN_NAME} | grep 'iPhone Distribution\\|Apple Distribution' | head -n1 | awk -F'\"' '{print $2}'").strip
-      raise "No distribution identity found in keychain" if identity.empty?
-      UI.message("Re-signing with identity: #{identity}")
-      sh("codesign --force --sign '#{identity}' --entitlements #{work}/entitlements.plist --timestamp #{app}")
-
-      # Re-zip into the IPA filename fastlane will pick up.
-      sh("rm #{ipa}")
-      sh("cd #{work} && zip -qr ../#{ipa} Payload")
-      UI.success("Patched IPA written: #{ipa}")
-
-      # FINAL verification: unzip the IPA we just wrote and confirm the
-      # patched Info.plist + icon files actually made it through. If this
-      # shows the bundle in good shape, any altool rejection points to a
-      # validator-side issue rather than our patch.
-      sh("echo '=== FINAL IPA VERIFICATION ==='")
-      sh("unzip -l #{ipa} | grep -iE '(info\\.plist|appicon|\\.car)' | head -30")
+      sh("echo '=== IPA pre-upload sanity check ==='")
+      sh("unzip -l #{ipa} | grep -iE '(info\\.plist|appicon|\\.car)' | head -20")
       sh("unzip -p #{ipa} Payload/AiveraEcho.app/Info.plist | /usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' /dev/stdin")
-      sh("unzip -p #{ipa} Payload/AiveraEcho.app/Info.plist | /usr/libexec/PlistBuddy -c 'Print :CFBundleIcons' /dev/stdin | head -10")
-      sh("echo '=== END VERIFICATION ==='")
+      sh("unzip -p #{ipa} Payload/AiveraEcho.app/Info.plist | /usr/libexec/PlistBuddy -c 'Print :CFBundleIcons' /dev/stdin")
     end
 
     # 6. Upload to TestFlight. Skip waiting for Apple's processing so CI exits
     #    promptly; the build appears in TestFlight a few minutes later.
-    #    No explicit `ipa:` — fastlane reads IPA_OUTPUT_PATH from lane
-    #    context, which still points at the IPA we rewrote in step 5b.
     upload_to_testflight(
       api_key:                          api_key,
       skip_waiting_for_build_processing: true,
