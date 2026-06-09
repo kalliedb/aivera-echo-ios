@@ -21,6 +21,13 @@ final class ReminderRepository: ObservableObject {
 
     @Published private(set) var reminders: [Reminder] = []
 
+    /// Derived stats + bucket groupings for the Home screen (FR-HOME-006 to 014).
+    /// Recomputed on every ``reminders`` emission via ``HomeStatsCalculator``.
+    /// The host can also call ``refreshStats()`` on `scenePhase == .active` so
+    /// the wall-clock anchored bits (greeting, today/tomorrow bucket cutoffs)
+    /// refresh after an idle-overnight reopen (FR-HOME-020).
+    @Published private(set) var homeStats: HomeStats = .empty
+
     /// The most recently swipe-deleted reminder. Cleared after the undo window
     /// expires or the user taps undo. Drives the UndoSnackbar UI.
     @Published private(set) var recentlyDeleted: Reminder?
@@ -59,8 +66,17 @@ final class ReminderRepository: ObservableObject {
             },
             onChange: { [weak self] reminders in
                 self?.reminders = reminders
+                self?.homeStats = HomeStatsCalculator.compute(reminders: reminders)
             }
         )
+    }
+
+    /// Recompute ``homeStats`` against the current ``reminders`` snapshot
+    /// with the wall clock as-of NOW. Call from `.onChange(of: scenePhase)`
+    /// so opening the app at 00:01 on a new day shifts greeting + bucket
+    /// boundaries without waiting for the next data change (FR-HOME-020).
+    func refreshStats() {
+        homeStats = HomeStatsCalculator.compute(reminders: reminders)
     }
 
     // MARK: - Reads

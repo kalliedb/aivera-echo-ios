@@ -124,49 +124,71 @@ struct HomeView: View {
 
     @ViewBuilder
     private var content: some View {
-        if repo.reminders.isEmpty {
-            VStack(spacing: 12) {
-                Image(systemName: "mic.slash")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.tertiary)
-                Text("No reminders yet")
-                    .font(.title3.weight(.semibold))
-                Text("Hold the mic and speak — Echo turns your voice into a reminder.")
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 48)
-            }
-            .padding(.bottom, 100)
+        if repo.homeStats.isEmpty {
+            // FR-HOME-014 — pulsing brand orb + warm copy.
+            EnhancedEmptyState()
         } else {
+            // FR-HOME-001 to 013 + FR-HOME-006/007/008/009 — Daily Hero at
+            // top, optional Stats Strip, then time-grouped reminder sections.
             List {
-                ForEach(repo.reminders) { reminder in
-                    let isThisRowPlaying =
-                        audioPlayer.isPlaying &&
-                        audioPlayer.nowPlayingURL?.path == reminder.audioPath
-                    ReminderRow(
-                        reminder: reminder,
-                        isPlaying: isThisRowPlaying,
-                        onToggle: { Task { try? await repo.toggleComplete(reminder) } },
-                        onPlay: {
-                            if isThisRowPlaying { audioPlayer.stop() }
-                            else                { audioPlayer.play(path: reminder.audioPath) }
-                        },
-                        onSnooze: { minutes in
-                            Task { try? await repo.snooze(reminder, minutes: minutes) }
-                        },
-                        onSnoozeCustom: {
-                            customSnoozeDate = max(reminder.triggerAt, Date().addingTimeInterval(60))
-                            snoozingReminder = reminder
+                Section {
+                    DailyHeroHeader(stats: repo.homeStats)
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                    if repo.homeStats.showStatsStrip {
+                        StatsStrip(stats: repo.homeStats)
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                    }
+                }
+
+                ForEach(TimeBucket.displayOrder, id: \.self) { bucket in
+                    let items = repo.homeStats.buckets[bucket] ?? []
+                    if !items.isEmpty {
+                        // Recently Done is the only collapsible bucket on
+                        // Android. SwiftUI's `Section` is always-expanded by
+                        // default — adding collapse state is a polish task
+                        // for M5.4b. For v1 we always render it expanded,
+                        // matching the rest of the buckets.
+                        Section(header: SectionHeaderRow(bucket: bucket, count: items.count)) {
+                            ForEach(items) { reminder in
+                                rowFor(reminder)
+                            }
                         }
-                    )
-                    .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
-                            Task { try? await repo.delete(reminder) }
-                        } label: { Label("Delete", systemImage: "trash") }
                     }
                 }
             }
             .listStyle(.plain)
+        }
+    }
+
+    @ViewBuilder
+    private func rowFor(_ reminder: Reminder) -> some View {
+        let isThisRowPlaying =
+            audioPlayer.isPlaying &&
+            audioPlayer.nowPlayingURL?.path == reminder.audioPath
+        ReminderRow(
+            reminder: reminder,
+            isPlaying: isThisRowPlaying,
+            onToggle: { Task { try? await repo.toggleComplete(reminder) } },
+            onPlay: {
+                if isThisRowPlaying { audioPlayer.stop() }
+                else                { audioPlayer.play(path: reminder.audioPath) }
+            },
+            onSnooze: { minutes in
+                Task { try? await repo.snooze(reminder, minutes: minutes) }
+            },
+            onSnoozeCustom: {
+                customSnoozeDate = max(reminder.triggerAt, Date().addingTimeInterval(60))
+                snoozingReminder = reminder
+            }
+        )
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) {
+                Task { try? await repo.delete(reminder) }
+            } label: { Label("Delete", systemImage: "trash") }
         }
     }
 
@@ -198,9 +220,50 @@ struct HomeView: View {
         Task {
             // Brief delay so the recogniser can post the final transcript.
             try? await Task.sleep(nanoseconds: 800_000_000)
-            let text = speech.finalText.isEmpty ? speech.partialText : speech.finalText
+            let raw = (speech.finalText.isEmpty ? speech.partialText : speech.finalText)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
             showRecordingOverlay = false
-            pendingReviewText = text.isEmpty ? "Reminder" : text
+
+            // FR-AI-001 — try the cloud smart parser for non-trivial inputs.
+            // Heuristic matches Android: anything compound or longer than a
+            // quick phrase. Short phrases skip the network round-trip and go
+            // straight to the review sheet.
+            let looksCompound = raw.range(of: " and ", options: .caseInsensitive) != nil ||
+                raw.range(of: " then ", options: .caseInsensitive) != nil ||
+                raw.range(of: " also ", options: .caseInsensitive) != nil
+            let shouldTrySmart = !raw.isEmpty && (looksCompound || raw.count > 30)
+
+            if shouldTrySmart {
+                let parsed = await SmartParser.parse(raw)
+                if parsed.count > 1 {
+                    // Compound utterance → silent batch-save, no review sheet.
+                    // Audio is attached to the FIRST reminder only (the
+                    // original voice memo); subsequent ones reuse the same
+                    // triggerAt by default.
+                    for (index, p) in parsed.enumerated() {
+                        let reminder = Reminder(
+                            text: p.text,
+                            triggerAt: p.triggerAt,
+                            audioPath: index == 0 ? speech.lastAudioURL?.path : nil,
+                            recurrence: p.recurrence,
+                            triggerType: .time,
+                            dirty: true
+                        )
+                        try? await repo.add(reminder)
+                    }
+                    return
+                }
+                if let only = parsed.first {
+                    // Single AI parse → drop into review sheet pre-filled.
+                    // Override pendingReviewText with the cleaned text so
+                    // the review row matches what Claude extracted.
+                    pendingReviewText = only.text
+                    return
+                }
+                // Empty parse → fall through to the original raw-text path.
+            }
+
+            pendingReviewText = raw.isEmpty ? "Reminder" : raw
         }
     }
 

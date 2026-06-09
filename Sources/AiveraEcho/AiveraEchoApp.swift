@@ -24,6 +24,11 @@ struct AiveraEchoApp: App {
                     // single-arg form was deprecated in iOS 17. Our minimum
                     // deployment target is iOS 17, so no @available guard needed.
                     if newPhase == .active {
+                        // FR-HOME-020 — recompute Daily Hero greeting + time
+                        // bucket boundaries against the current wall clock,
+                        // so an overnight idle doesn't leave us stuck on the
+                        // previous day's groupings.
+                        appDelegate.repository.refreshStats()
                         Task {
                             await appDelegate.syncEngine.syncNow()
                             await appDelegate.entitlementStore.refresh()
