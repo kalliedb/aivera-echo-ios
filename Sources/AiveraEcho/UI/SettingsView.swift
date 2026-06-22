@@ -12,6 +12,7 @@ struct SettingsView: View {
 
     @State private var confirmDeleteData = false
     @State private var confirmDeleteAccount = false
+    @State private var showWhatsApp = false
 
     var body: some View {
         NavigationStack {
@@ -42,6 +43,21 @@ struct SettingsView: View {
                         Text("30 days").tag(30)
                     }
                     .pickerStyle(.menu)
+                }
+
+                Section("Delivery") {
+                    Button { showWhatsApp = true } label: {
+                        HStack {
+                            Text("WhatsApp delivery")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Text(settingsStore.settings.whatsappDeliveryEnabled ? "On" : "Off")
+                                .foregroundStyle(.secondary)
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
                 }
 
                 Section("Sync") {
@@ -96,6 +112,11 @@ struct SettingsView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
                 }
+            }
+            .sheet(isPresented: $showWhatsApp) {
+                WhatsAppSettingsView()
+                    .environmentObject(settingsStore)
+                    .environmentObject(sessionStore)
             }
             .confirmationDialog("Delete my data?",
                                 isPresented: $confirmDeleteData,

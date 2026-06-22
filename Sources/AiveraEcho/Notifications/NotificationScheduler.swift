@@ -119,7 +119,10 @@ final class NotificationScheduler {
     /// Fire a notification right now (used by GeofenceManager on region enter).
     /// Identifier includes a timestamp so iOS doesn't dedupe against any
     /// scheduled future delivery for the same reminder.
-    func fireImmediate(for reminder: Reminder) async {
+    ///
+    /// `whatsAppEnabled` is passed in by the caller because `SettingsStore`
+    /// is `@MainActor` and this method is called from arbitrary contexts.
+    func fireImmediate(for reminder: Reminder, whatsAppEnabled: Bool = false) async {
         guard await requestAuthorizationIfNeeded() else { return }
 
         let content = UNMutableNotificationContent()
@@ -148,6 +151,17 @@ final class NotificationScheduler {
             try await UNUserNotificationCenter.current().add(request)
         } catch {
             print("fireImmediate failed for \(reminder.id): \(error)")
+        }
+
+        // FR-INT-001 — also dispatch via WhatsApp when enabled. Best-effort,
+        // failures swallowed. Time-based reminders fire at the OS level
+        // when the app is killed, so this branch only covers the geofence
+        // and in-app paths; full coverage requires a Notification Service
+        // Extension target (deferred to M3.8d-ios).
+        if whatsAppEnabled, !bodyBase.isEmpty {
+            Task.detached(priority: .utility) {
+                _ = await WhatsAppClient.send(text: bodyBase)
+            }
         }
     }
 

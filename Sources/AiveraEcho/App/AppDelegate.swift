@@ -67,7 +67,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             Task { @MainActor in
                 guard let reminder = try? await self.repository.findById(reminderId),
                       !reminder.completed else { return }
-                await self.scheduler.fireImmediate(for: reminder)
+                let whatsApp = self.settingsStore.settings.whatsappDeliveryEnabled
+                await self.scheduler.fireImmediate(for: reminder, whatsAppEnabled: whatsApp)
             }
         }
     }
