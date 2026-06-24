@@ -152,16 +152,23 @@ enum WhatsAppClient {
     }
 
     /// Pull a server "error" field out of a Supabase function error body.
-    /// Cheap regex with one capture group — full JSON decode isn't worth it.
+    /// Uses proper JSON parsing so nested escaped strings (e.g. Meta's
+    /// `"Meta 400: {\"error\":...}"`) come through readably instead of being
+    /// truncated at the first escaped quote — the regex-with-capture-groups
+    /// approach had this bug because [^"]+ stops at any literal " byte,
+    /// including the \" in escaped JSON.
     private static func extractError(_ body: String) -> String? {
-        guard !body.isEmpty else { return nil }
-        let pattern = #""error"\s*:\s*"([^"]+)""#
-        guard let regex = try? NSRegularExpression(pattern: pattern),
-              let match = regex.firstMatch(in: body, range: NSRange(body.startIndex..., in: body)),
-              match.numberOfRanges >= 2,
-              let captureRange = Range(match.range(at: 1), in: body)
+        guard !body.isEmpty,
+              let data = body.data(using: .utf8),
+              let parsed = try? JSONSerialization.jsonObject(with: data),
+              let dict = parsed as? [String: Any]
         else { return nil }
-        return String(body[captureRange])
+        for key in ["error", "error_description", "message"] {
+            if let value = dict[key] as? String, !value.isEmpty {
+                return value
+            }
+        }
+        return nil
     }
 
     // MARK: - DTOs
