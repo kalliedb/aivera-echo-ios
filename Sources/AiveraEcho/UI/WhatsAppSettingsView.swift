@@ -220,7 +220,7 @@ struct WhatsAppSettingsView: View {
     // MARK: - Actions
 
     private func requestCode(prefilled: String? = nil) async {
-        let raw = (prefilled ?? phoneInput).trimmingCharacters(in: .whitespaces)
+        let raw = Self.normalizePhoneE164(prefilled ?? phoneInput)
         // E.164: leading +, country code (1-9), 7–15 total digits.
         let pattern = #"^\+[1-9]\d{7,14}$"#
         guard raw.range(of: pattern, options: .regularExpression) != nil else {
@@ -239,6 +239,23 @@ struct WhatsAppSettingsView: View {
         case .notSignedIn:
             ui = .enteringPhone(error: "Sign in first to enable WhatsApp delivery")
         }
+    }
+
+    /// Normalise a user-typed phone string into E.164. The UI prefills "+27",
+    /// and SA users routinely append their *local-format* number which retains
+    /// a leading 0 (e.g. typing "0794915947" after "+27" yields "+270794915947").
+    /// That looks valid but isn't — Meta then sees a non-existent number. This
+    /// strips a stray 0 sitting immediately after the country code.
+    static func normalizePhoneE164(_ raw: String) -> String {
+        let stripped = raw.trimmingCharacters(in: .whitespaces)
+            .replacingOccurrences(of: #"[\s\-()]"#, with: "", options: .regularExpression)
+        guard let regex = try? NSRegularExpression(pattern: #"^(\+\d{1,3})0(\d+)$"#),
+              let match = regex.firstMatch(in: stripped, range: NSRange(stripped.startIndex..., in: stripped)),
+              match.numberOfRanges >= 3,
+              let cc = Range(match.range(at: 1), in: stripped),
+              let rest = Range(match.range(at: 2), in: stripped)
+        else { return stripped }
+        return String(stripped[cc]) + String(stripped[rest])
     }
 
     private func submitCode() async {
