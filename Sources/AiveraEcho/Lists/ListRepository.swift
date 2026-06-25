@@ -54,20 +54,26 @@ final class ListRepository: ObservableObject {
 
     @discardableResult
     func addList(name: String, type: ListType = .custom) async throws -> TaskList {
-        var list = TaskList(name: name, type: type)
+        let list = TaskList(name: name, type: type)
+        // Re-bind inside the writer closure so the mutating insert(db) is
+        // called on a fresh `var` local to the closure — avoids Swift 6
+        // captured-var-mutation diagnostic, same pattern as ReminderRepository.
         try await database.writer.write { db in
-            try list.insert(db)
+            var row = list
+            try row.insert(db)
         }
         return list
     }
 
     func renameList(_ list: TaskList, to newName: String) async throws {
-        var updated = list
-        updated.name = newName
-        updated.updatedAt = Date()
-        updated.dirty = true
+        let snapshot = TaskList(
+            id: list.id, clientId: list.clientId, name: newName, type: list.type,
+            createdAt: list.createdAt, updatedAt: Date(),
+            dirty: true, pendingDelete: list.pendingDelete
+        )
         try await database.writer.write { db in
-            try updated.update(db)
+            var row = snapshot
+            try row.update(db)
         }
     }
 
@@ -75,12 +81,14 @@ final class ListRepository: ObservableObject {
         // Soft delete via tombstone — matches Android's pendingDelete pattern.
         // Items cascade-delete naturally once a sync engine hard-deletes the
         // parent; for now they're orphaned-but-hidden behind the list filter.
-        var updated = list
-        updated.pendingDelete = true
-        updated.dirty = true
-        updated.updatedAt = Date()
+        let snapshot = TaskList(
+            id: list.id, clientId: list.clientId, name: list.name, type: list.type,
+            createdAt: list.createdAt, updatedAt: Date(),
+            dirty: true, pendingDelete: true
+        )
         try await database.writer.write { db in
-            try updated.update(db)
+            var row = snapshot
+            try row.update(db)
         }
     }
 
@@ -93,7 +101,8 @@ final class ListRepository: ObservableObject {
             throw NSError(domain: "ListRepository", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: "Item text is empty"])
         }
-        var item = TaskListItem(listId: list.id, text: trimmed)
+        let item = TaskListItem(listId: list.id, text: trimmed)
+        let listId = list.id
         try await database.writer.write { db in
             let maxIndex: Int = try Int.fetchOne(
                 db,
@@ -102,25 +111,29 @@ final class ListRepository: ObservableObject {
                     FROM task_list_items
                     WHERE listId = ?
                 """,
-                arguments: [list.id]
+                arguments: [listId]
             ) ?? 0
-            item.orderIndex = maxIndex
-            try item.insert(db)
+            var row = item
+            row.orderIndex = maxIndex
+            try row.insert(db)
             // Bump list's updatedAt so the index re-orders to show the most
             // recently-touched list first.
             try TaskList
-                .filter(Column("id") == list.id)
+                .filter(Column("id") == listId)
                 .updateAll(db, Column("updatedAt").set(to: Date()))
         }
         return item
     }
 
     func setChecked(_ item: TaskListItem, checked: Bool) async throws {
-        var updated = item
-        updated.checked = checked
-        updated.updatedAt = Date()
+        let snapshot = TaskListItem(
+            id: item.id, listId: item.listId, text: item.text,
+            checked: checked, orderIndex: item.orderIndex,
+            createdAt: item.createdAt, updatedAt: Date()
+        )
         try await database.writer.write { db in
-            try updated.update(db)
+            var row = snapshot
+            try row.update(db)
         }
     }
 

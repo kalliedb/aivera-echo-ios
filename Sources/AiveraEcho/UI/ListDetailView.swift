@@ -118,9 +118,13 @@ struct ListDetailView: View {
     }
 }
 
-/// Bridge so the .task(id:) observation in the view can reach the writer
-/// without taking another @EnvironmentObject (ListRepository keeps the
-/// writer private). Set once at app launch by AppDelegate.
+/// Bridge so the .task(id:) observation in the view can reach the database
+/// without taking another @EnvironmentObject (ListRepository keeps its
+/// writer private). Typed as `any DatabaseReader` because that's all the
+/// observation needs — Swift existentials don't let a stored `any
+/// DatabaseWriter` be passed where DatabaseReader is expected, even though
+/// DatabaseWriter inherits from DatabaseReader. Set once at app launch by
+/// AppDelegate; the assigned value is the same DatabasePool the writer uses.
 enum AppDatabaseHolder {
-    static var shared: DatabaseWriter!
+    static var shared: (any DatabaseReader)!
 }
