@@ -16,6 +16,10 @@ struct HomeView: View {
     @State private var customSnoozeDate: Date = Date().addingTimeInterval(60 * 60)
     @State private var showAccount = false
     @State private var showSettings = false
+    /// Tap-to-edit target. When set, opens ReviewSheet in edit mode.
+    @State private var editingReminder: Reminder?
+    /// New manual reminder sheet — opened by the "+" toolbar button.
+    @State private var showNewReminder = false
 
     var body: some View {
         NavigationStack {
@@ -29,6 +33,12 @@ struct HomeView: View {
             }
             .navigationTitle("Aivera Echo")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(action: { showNewReminder = true }) {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel("New reminder")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { showAccount = true }) {
                         Image(systemName: "person.crop.circle")
@@ -119,6 +129,30 @@ struct HomeView: View {
             .sheet(isPresented: $showSettings) {
                 SettingsView()
             }
+            // Manual new-reminder entry (+ button in the toolbar). Opens
+            // ReviewSheet with empty text and the default one-hour-from-now
+            // trigger; user types and saves.
+            .sheet(isPresented: $showNewReminder) {
+                ReviewSheet(draft: ReviewDraft(text: "")) { reminder in
+                    if let reminder { Task { try? await repo.add(reminder) } }
+                    showNewReminder = false
+                }
+            }
+            // Tap-to-edit on an existing reminder. ReviewSheet opens prefilled
+            // and on save returns a Reminder with the same id/clientId, so the
+            // repo's update path runs (not add — which would duplicate).
+            .sheet(item: $editingReminder) { existing in
+                ReviewSheet(
+                    draft: ReviewDraft(
+                        text: existing.text,
+                        audioURL: existing.audioPath.map { URL(fileURLWithPath: $0) }
+                    ),
+                    editing: existing
+                ) { updated in
+                    if let updated { Task { try? await repo.update(updated) } }
+                    editingReminder = nil
+                }
+            }
         }
     }
 
@@ -177,6 +211,7 @@ struct HomeView: View {
                 if isThisRowPlaying { audioPlayer.stop() }
                 else                { audioPlayer.play(path: reminder.audioPath) }
             },
+            onEdit: { editingReminder = reminder },
             onSnooze: { minutes in
                 Task { try? await repo.snooze(reminder, minutes: minutes) }
             },

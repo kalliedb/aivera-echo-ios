@@ -8,25 +8,44 @@ struct ReviewDraft: Identifiable {
 }
 
 struct ReviewSheet: View {
+    /// If non-nil, the sheet is editing this existing reminder; on Save the
+    /// callback returns a Reminder with the same id+clientId and updated
+    /// fields. If nil, the sheet creates a brand-new reminder from `draft`.
+    let editing: Reminder?
     @State var draft: ReviewDraft
     let onClose: (Reminder?) -> Void
 
     @EnvironmentObject private var locationManager: LocationManager
 
     // Time trigger
-    @State private var triggerAt: Date = Date().addingTimeInterval(60 * 60)
-    @State private var recurrence: Recurrence = .none
+    @State private var triggerAt: Date
+    @State private var recurrence: Recurrence
 
     // Trigger type picker
-    @State private var triggerType: TriggerType = .time
+    @State private var triggerType: TriggerType
 
     // Place trigger
     @State private var latitude: Double?
     @State private var longitude: Double?
     @State private var placeLabel: String?
-    @State private var radius: Double = 200
+    @State private var radius: Double
     @State private var isLocating = false
     @State private var locationError: String?
+
+    init(draft: ReviewDraft, editing: Reminder? = nil, onClose: @escaping (Reminder?) -> Void) {
+        self._draft = State(initialValue: draft)
+        self.editing = editing
+        self.onClose = onClose
+        // Prefill state from the existing reminder when editing, otherwise
+        // use sensible new-reminder defaults (one hour from now, time-based).
+        self._triggerAt   = State(initialValue: editing?.triggerAt ?? Date().addingTimeInterval(60 * 60))
+        self._recurrence  = State(initialValue: editing?.recurrence ?? .none)
+        self._triggerType = State(initialValue: editing?.triggerType ?? .time)
+        self._latitude    = State(initialValue: editing?.latitude)
+        self._longitude   = State(initialValue: editing?.longitude)
+        self._placeLabel  = State(initialValue: editing?.placeLabel)
+        self._radius      = State(initialValue: editing?.radiusMeters ?? 200)
+    }
 
     var body: some View {
         NavigationStack {
@@ -96,7 +115,7 @@ struct ReviewSheet: View {
                     }
                 }
             }
-            .navigationTitle("New reminder")
+            .navigationTitle(editing == nil ? "New reminder" : "Edit reminder")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -112,17 +131,43 @@ struct ReviewSheet: View {
     }
 
     private func save() {
-        let reminder = Reminder(
-            text:         draft.text.trimmingCharacters(in: .whitespacesAndNewlines),
-            triggerAt:    triggerAt,
-            audioPath:    draft.audioURL?.path,
-            recurrence:   recurrence,
-            triggerType:  triggerType,
-            latitude:     triggerType == .location ? latitude  : nil,
-            longitude:    triggerType == .location ? longitude : nil,
-            radiusMeters: triggerType == .location ? radius    : nil,
-            placeLabel:   triggerType == .location ? placeLabel : nil
-        )
+        let cleanedText = draft.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let textForReminder = cleanedText.isEmpty ? "Reminder" : cleanedText
+        let reminder: Reminder
+        if let editing {
+            // Preserve id + clientId so the row is UPDATED rather than duplicated.
+            // Existing audio survives unless we're now adding a fresh recording on top.
+            reminder = Reminder(
+                id:           editing.id,
+                clientId:     editing.clientId,
+                text:         textForReminder,
+                triggerAt:    triggerAt,
+                completed:    false,
+                completedAt:  nil,
+                audioPath:    draft.audioURL?.path ?? editing.audioPath,
+                recurrence:   recurrence,
+                triggerType:  triggerType,
+                latitude:     triggerType == .location ? latitude  : nil,
+                longitude:    triggerType == .location ? longitude : nil,
+                radiusMeters: triggerType == .location ? radius    : nil,
+                placeLabel:   triggerType == .location ? placeLabel : nil,
+                updatedAt:    Date(),
+                dirty:        true,
+                pendingDelete: false
+            )
+        } else {
+            reminder = Reminder(
+                text:         textForReminder,
+                triggerAt:    triggerAt,
+                audioPath:    draft.audioURL?.path,
+                recurrence:   recurrence,
+                triggerType:  triggerType,
+                latitude:     triggerType == .location ? latitude  : nil,
+                longitude:    triggerType == .location ? longitude : nil,
+                radiusMeters: triggerType == .location ? radius    : nil,
+                placeLabel:   triggerType == .location ? placeLabel : nil
+            )
+        }
         onClose(reminder)
     }
 
