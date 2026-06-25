@@ -15,6 +15,7 @@ struct ListDetailView: View {
     @EnvironmentObject private var listRepo: ListRepository
     @State private var items: [TaskListItem] = []
     @State private var newItemText: String = ""
+    @State private var observation: AnyDatabaseCancellable?
     @FocusState private var newItemFocused: Bool
 
     var body: some View {
@@ -41,16 +42,27 @@ struct ListDetailView: View {
         }
         .navigationTitle(list.name)
         .navigationBarTitleDisplayMode(.inline)
-        .task(id: list.id) {
-            // Observe items for this list. Replaces the previous binding
-            // each time we navigate to a different list.
-            do {
-                for try await fresh in listRepo.itemsObservation(for: list.id).values(in: AppDatabaseHolder.shared) {
-                    items = fresh
+        .onAppear {
+            // Subscribe to items for this list. We use the start(in:onError:onChange:)
+            // entry point rather than .values(in:) because the latter is
+            // generic over `<R: DatabaseReader>` and Swift existentials don't
+            // satisfy a generic constraint requirement (even when the
+            // existential matches the protocol). `start(in:)` takes the
+            // existential parameter directly, no constraint issue.
+            observation?.cancel()
+            observation = listRepo.itemsObservation(for: list.id).start(
+                in: AppDatabaseHolder.shared,
+                onError: { error in
+                    print("ListDetailView items observation error: \(error)")
+                },
+                onChange: { fresh in
+                    Task { @MainActor in items = fresh }
                 }
-            } catch {
-                print("ListDetailView observation error: \(error)")
-            }
+            )
+        }
+        .onDisappear {
+            observation?.cancel()
+            observation = nil
         }
     }
 
