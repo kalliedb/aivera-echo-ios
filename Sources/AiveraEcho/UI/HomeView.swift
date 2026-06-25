@@ -20,6 +20,9 @@ struct HomeView: View {
     @State private var editingReminder: Reminder?
     /// New manual reminder sheet — opened by the "+" toolbar button.
     @State private var showNewReminder = false
+    /// When set by a quick-add chip, the new-reminder sheet opens with this
+    /// trigger time pre-filled. Cleared on dismiss.
+    @State private var prefilledTriggerAt: Date?
 
     var body: some View {
         NavigationStack {
@@ -132,8 +135,11 @@ struct HomeView: View {
             // Manual new-reminder entry (+ button in the toolbar). Opens
             // ReviewSheet with empty text and the default one-hour-from-now
             // trigger; user types and saves.
-            .sheet(isPresented: $showNewReminder) {
-                ReviewSheet(draft: ReviewDraft(text: "")) { reminder in
+            .sheet(isPresented: $showNewReminder, onDismiss: { prefilledTriggerAt = nil }) {
+                ReviewSheet(
+                    draft: ReviewDraft(text: ""),
+                    prefilledTriggerAt: prefilledTriggerAt
+                ) { reminder in
                     if let reminder { Task { try? await repo.add(reminder) } }
                     showNewReminder = false
                 }
@@ -176,6 +182,14 @@ struct HomeView: View {
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
                     }
+                    // FR-HOME-016 — quick-add chips (Android parity).
+                    QuickAddRow(onQuickAdd: { date in
+                        prefilledTriggerAt = date
+                        showNewReminder = true
+                    })
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                 }
 
                 ForEach(TimeBucket.displayOrder, id: \.self) { bucket in

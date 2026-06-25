@@ -32,13 +32,20 @@ struct ReviewSheet: View {
     @State private var isLocating = false
     @State private var locationError: String?
 
-    init(draft: ReviewDraft, editing: Reminder? = nil, onClose: @escaping (Reminder?) -> Void) {
+    init(
+        draft: ReviewDraft,
+        editing: Reminder? = nil,
+        prefilledTriggerAt: Date? = nil,
+        onClose: @escaping (Reminder?) -> Void
+    ) {
         self._draft = State(initialValue: draft)
         self.editing = editing
         self.onClose = onClose
         // Prefill state from the existing reminder when editing, otherwise
-        // use sensible new-reminder defaults (one hour from now, time-based).
-        self._triggerAt   = State(initialValue: editing?.triggerAt ?? Date().addingTimeInterval(60 * 60))
+        // use the quick-add prefill if present, otherwise default to one
+        // hour from now.
+        let defaultTrigger = prefilledTriggerAt ?? Date().addingTimeInterval(60 * 60)
+        self._triggerAt   = State(initialValue: editing?.triggerAt ?? defaultTrigger)
         self._recurrence  = State(initialValue: editing?.recurrence ?? .none)
         self._triggerType = State(initialValue: editing?.triggerType ?? .time)
         self._latitude    = State(initialValue: editing?.latitude)
