@@ -87,12 +87,19 @@ platform :ios do
     #     XcodeGen `sources:` (tf13+), actool produces a valid bundle with
     #     Assets.car + auto-generated icon files + CFBundleIcons. No
     #     post-build patching needed — verify and upload as-is.
+    #
+    #     Why a temp file rather than piping: macOS Tahoe (macos-26)'s
+    #     PlistBuddy can't reliably parse a binary plist from /dev/stdin —
+    #     it reports "Cannot parse a NULL or zero-length data" even when
+    #     the upstream pipe is producing valid bytes. Extracting to a real
+    #     file first works around the regression.
     Dir.chdir("..") do
       ipa = "AiveraEcho.ipa"
       sh("echo '=== IPA pre-upload sanity check ==='")
       sh("unzip -l #{ipa} | grep -iE '(info\\.plist|appicon|\\.car)' | head -20")
-      sh("unzip -p #{ipa} Payload/AiveraEcho.app/Info.plist | /usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' /dev/stdin")
-      sh("unzip -p #{ipa} Payload/AiveraEcho.app/Info.plist | /usr/libexec/PlistBuddy -c 'Print :CFBundleIcons' /dev/stdin")
+      sh("mkdir -p /tmp/ipa_check && unzip -j -o -q #{ipa} Payload/AiveraEcho.app/Info.plist -d /tmp/ipa_check")
+      sh("/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' /tmp/ipa_check/Info.plist")
+      sh("/usr/libexec/PlistBuddy -c 'Print :CFBundleIcons' /tmp/ipa_check/Info.plist")
     end
 
     # 6. Upload to TestFlight. Skip waiting for Apple's processing so CI exits
