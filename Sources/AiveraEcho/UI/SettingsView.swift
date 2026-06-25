@@ -6,6 +6,7 @@ struct SettingsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var sessionStore: SessionStore
     @EnvironmentObject private var repository: ReminderRepository
+    @EnvironmentObject private var listRepository: ListRepository
     @EnvironmentObject private var entitlementStore: EntitlementStore
     @Environment(\.openURL) private var openURL
     @Environment(\.dismiss) private var dismiss
@@ -165,6 +166,7 @@ struct SettingsView: View {
     /// /echo/delete-account page on the website.
     private func deleteMyData() async {
         await repository.wipeAll()
+        await listRepository.wipeAll()
 
         // Audio folder
         if let docs = try? FileManager.default.url(
