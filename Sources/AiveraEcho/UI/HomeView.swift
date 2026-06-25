@@ -42,6 +42,12 @@ struct HomeView: View {
                     }
                     .accessibilityLabel("New reminder")
                 }
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink(destination: ListsView()) {
+                        Image(systemName: "list.bullet.rectangle")
+                    }
+                    .accessibilityLabel("Lists")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { showAccount = true }) {
                         Image(systemName: "person.crop.circle")

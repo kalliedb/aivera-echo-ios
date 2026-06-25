@@ -11,6 +11,7 @@ struct AiveraEchoApp: App {
                 .tint(.echoAccent)
                 // Long-lived services exposed app-wide.
                 .environmentObject(appDelegate.repository)
+                .environmentObject(appDelegate.listRepository)
                 .environmentObject(appDelegate.audioPlayer)
                 .environmentObject(appDelegate.locationManager)
                 .environmentObject(appDelegate.sessionStore)

@@ -89,6 +89,38 @@ final class AppDatabase {
             )
         }
 
+        // v3: Voice Lists tables — mirrors Android's M3.7a schema.
+        // task_list_items has ON DELETE CASCADE on its parent list so removing
+        // a list naturally cleans up its items.
+        migrator.registerMigration("v3.create_lists") { db in
+            try db.create(table: TaskList.databaseTableName) { t in
+                t.column("id", .text).primaryKey()
+                t.column("clientId", .text).notNull()
+                t.column("name", .text).notNull()
+                t.column("type", .text).notNull().defaults(to: ListType.custom.rawValue)
+                t.column("createdAt", .datetime).notNull()
+                t.column("updatedAt", .datetime).notNull()
+                t.column("dirty", .boolean).notNull().defaults(to: true)
+                t.column("pendingDelete", .boolean).notNull().defaults(to: false)
+            }
+
+            try db.create(table: TaskListItem.databaseTableName) { t in
+                t.column("id", .text).primaryKey()
+                t.column("listId", .text).notNull()
+                    .references(TaskList.databaseTableName, onDelete: .cascade)
+                t.column("text", .text).notNull()
+                t.column("checked", .boolean).notNull().defaults(to: false)
+                t.column("orderIndex", .integer).notNull().defaults(to: 0)
+                t.column("createdAt", .datetime).notNull()
+                t.column("updatedAt", .datetime).notNull()
+            }
+            try db.create(
+                index: "idx_list_items_listId",
+                on: TaskListItem.databaseTableName,
+                columns: ["listId"]
+            )
+        }
+
         return migrator
     }
 }

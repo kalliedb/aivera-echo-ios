@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     let database:        AppDatabase
     let repository:      ReminderRepository
+    let listRepository:  ListRepository
     let audioPlayer:     AudioPlayer
     let scheduler:       NotificationScheduler
     let locationManager: LocationManager
@@ -43,7 +44,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             scheduler:       scheduler,
             geofenceManager: geofenceManager
         )
+        let listRepository   = ListRepository(database: db)
         self.database         = db
+        // Expose the writer to the view-side .task(id:) observation in
+        // ListDetailView. Set before any List view materialises.
+        AppDatabaseHolder.shared = db.writer
+        self.listRepository   = listRepository
         self.scheduler        = scheduler
         self.locationManager  = locationManager
         self.geofenceManager  = geofenceManager
