@@ -112,6 +112,7 @@ final class ReminderRepository: ObservableObject {
             try row.insert(db)
         }
         await arm(snapshot)
+        await scheduleWhatsAppIfNeeded(snapshot)
     }
 
     func update(_ reminder: Reminder) async throws {
@@ -123,6 +124,24 @@ final class ReminderRepository: ObservableObject {
             try copy.update(db)
         }
         await arm(copy)
+        await scheduleWhatsAppIfNeeded(copy)
+    }
+
+    /// FR-INT-001 (M3.8d) — fire-and-forget server-side WhatsApp scheduling.
+    /// Only for time-based reminders that haven't already fired or been
+    /// soft-deleted. Geofence triggers can't be pre-scheduled on the server,
+    /// so they stay on the AppDelegate.fireImmediate path.
+    private func scheduleWhatsAppIfNeeded(_ reminder: Reminder) async {
+        guard reminder.triggerType == .time,
+              !reminder.completed,
+              !reminder.pendingDelete,
+              reminder.triggerAt > Date()
+        else { return }
+        await WhatsAppClient.schedule(
+            reminderId: reminder.clientId,
+            text:       reminder.text,
+            triggerAt:  reminder.triggerAt
+        )
     }
 
     /// Soft-delete: marks the row pendingDelete + dirty. The row vanishes from

@@ -108,6 +108,33 @@ enum WhatsAppClient {
         }
     }
 
+    /// FR-INT-001 (M3.8d) — server-side scheduling. Called whenever a
+    /// time-based reminder is created or rescheduled. The pg_cron job
+    /// inside Supabase picks up due rows once per minute and fires the
+    /// reminder_alert template independently of this client process —
+    /// so the user gets a WhatsApp even if the app is killed at fire time.
+    ///
+    /// Fire-and-forget: failures (no network, opted out, not subscribed)
+    /// don't surface to the user. The local notification still fires;
+    /// WhatsApp delivery is supplementary.
+    @discardableResult
+    static func schedule(reminderId: String, text: String, triggerAt: Date) async -> Bool {
+        guard let token = await token() else { return false }
+        let iso = ISO8601DateFormatter().string(from: triggerAt)
+        let payload = ScheduleRequest(reminderId: reminderId, text: text, triggerAt: iso)
+        do {
+            let response: ScheduleResponse = try await post(
+                path: "whatsapp-schedule",
+                payload: payload,
+                token: token,
+                timeout: 10
+            )
+            return response.scheduled == true
+        } catch {
+            return false
+        }
+    }
+
     // MARK: - Internals
 
     /// Read the current JWT from supabase-swift. Returns nil when signed out
@@ -176,6 +203,16 @@ enum WhatsAppClient {
     private struct VerifyRequest: Encodable { let phone: String }
     private struct ConfirmRequest: Encodable { let code: String }
     private struct SendRequest: Encodable { let text: String }
+    private struct ScheduleRequest: Encodable {
+        let reminderId: String
+        let text: String
+        let triggerAt: String      // ISO 8601 UTC
+    }
+    private struct ScheduleResponse: Decodable {
+        let scheduled: Bool?
+        let reason: String?
+        let error: String?
+    }
 
     private struct VerifyResponse: Decodable {
         let expiresInSeconds: Int?
