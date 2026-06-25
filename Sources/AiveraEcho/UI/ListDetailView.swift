@@ -130,13 +130,14 @@ struct ListDetailView: View {
     }
 }
 
-/// Bridge so the .task(id:) observation in the view can reach the database
+/// Bridge so the onAppear observation in the view can reach the database
 /// without taking another @EnvironmentObject (ListRepository keeps its
-/// writer private). Typed as `any DatabaseReader` because that's all the
-/// observation needs — Swift existentials don't let a stored `any
-/// DatabaseWriter` be passed where DatabaseReader is expected, even though
-/// DatabaseWriter inherits from DatabaseReader. Set once at app launch by
-/// AppDelegate; the assigned value is the same DatabasePool the writer uses.
+/// writer private). Typed as `any DatabaseWriter` — NOT `DatabaseReader` —
+/// because Swift existential rules let `any DatabaseWriter` be "opened" to
+/// satisfy GRDB's `<R: DatabaseReader>` generic constraint (DatabaseWriter
+/// inherits DatabaseReader), but `any DatabaseReader` can't satisfy its own
+/// protocol constraint due to existential self-non-conformance. Set once at
+/// app launch by AppDelegate.
 enum AppDatabaseHolder {
-    static var shared: (any DatabaseReader)!
+    static var shared: (any DatabaseWriter)!
 }
