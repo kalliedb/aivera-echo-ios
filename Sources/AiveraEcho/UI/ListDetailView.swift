@@ -43,22 +43,15 @@ struct ListDetailView: View {
         .navigationTitle(list.name)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            // Subscribe to items for this list. We use the start(in:onError:onChange:)
-            // entry point rather than .values(in:) because the latter is
-            // generic over `<R: DatabaseReader>` and Swift existentials don't
-            // satisfy a generic constraint requirement (even when the
-            // existential matches the protocol). `start(in:)` takes the
-            // existential parameter directly, no constraint issue.
+            // Hand observation lifecycle to ListRepository — it has the
+            // concrete database reference that GRDB's generic start(in:)
+            // can open. Crossing the existential through an external
+            // holder defeats Swift's existential opening.
             observation?.cancel()
-            observation = listRepo.itemsObservation(for: list.id).start(
-                in: AppDatabaseHolder.shared,
-                onError: { error in
-                    print("ListDetailView items observation error: \(error)")
-                },
-                onChange: { fresh in
-                    Task { @MainActor in items = fresh }
-                }
-            )
+            let cancellable = listRepo.observeItems(for: list.id) { fresh in
+                Task { @MainActor in items = fresh }
+            }
+            observation = cancellable
         }
         .onDisappear {
             observation?.cancel()
@@ -130,14 +123,3 @@ struct ListDetailView: View {
     }
 }
 
-/// Bridge so the onAppear observation in the view can reach the database
-/// without taking another @EnvironmentObject (ListRepository keeps its
-/// writer private). Typed as `any DatabaseWriter` — NOT `DatabaseReader` —
-/// because Swift existential rules let `any DatabaseWriter` be "opened" to
-/// satisfy GRDB's `<R: DatabaseReader>` generic constraint (DatabaseWriter
-/// inherits DatabaseReader), but `any DatabaseReader` can't satisfy its own
-/// protocol constraint due to existential self-non-conformance. Set once at
-/// app launch by AppDelegate.
-enum AppDatabaseHolder {
-    static var shared: (any DatabaseWriter)!
-}

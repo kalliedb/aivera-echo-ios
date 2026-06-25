@@ -42,14 +42,32 @@ final class ListRepository: ObservableObject {
         )
     }
 
-    /// Observe items for a single list. View uses .task to bind this.
-    func itemsObservation(for listId: String) -> ValueObservation<ValueReducers.Fetch<[TaskListItem]>> {
-        ValueObservation.tracking { db -> [TaskListItem] in
+    /// Observe items for a single list. The view starts an observation via
+    /// this method and holds the returned cancellable in @State.
+    ///
+    /// The call to ValueObservation.start(in:) lives here rather than in the
+    /// view because the writer reference (`database.writer`) is a concrete
+    /// `any DatabaseWriter` in this stored-property context that the
+    /// compiler can open into GRDB's generic `<R: DatabaseReader>`
+    /// constraint. Crossing the existential through an external holder
+    /// breaks that opening, even when the same protocol is used.
+    func observeItems(
+        for listId: String,
+        onChange: @escaping @Sendable ([TaskListItem]) -> Void
+    ) -> AnyDatabaseCancellable {
+        let observation = ValueObservation.tracking { db -> [TaskListItem] in
             try TaskListItem
                 .filter(Column("listId") == listId)
                 .order(Column("orderIndex").asc, Column("createdAt").asc)
                 .fetchAll(db)
         }
+        return observation.start(
+            in: database.writer,
+            onError: { error in
+                print("observeItems error for listId=\(listId): \(error)")
+            },
+            onChange: onChange
+        )
     }
 
     @discardableResult

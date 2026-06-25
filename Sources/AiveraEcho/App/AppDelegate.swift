@@ -46,9 +46,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         )
         let listRepository   = ListRepository(database: db)
         self.database         = db
-        // Expose the writer to the view-side .task(id:) observation in
-        // ListDetailView. Set before any List view materialises.
-        AppDatabaseHolder.shared = db.writer
         self.listRepository   = listRepository
         self.scheduler        = scheduler
         self.locationManager  = locationManager
